@@ -103,8 +103,9 @@ void PlaneNode::Draw() {
 	else if (stat == STAT::selected) {
 		pcd->SetColor(glm::vec4(1.0, 1.0, 0.0, 1.0));
 	}
-	else if (stat == STAT::tied) {
+	else if (stat == STAT::tied) { //hide
 		pcd->SetColor(glm::vec4(0.0, 1.0, 0.0, 1.0));
+		return;
 	}
 	//pcd->SetColor(glm::vec4(1.0, 0.0, 0.0, 1.0));
 
@@ -129,6 +130,111 @@ void PlaneNode::setup_face() {
 
 	faces[0] = TriangleNode(p_square[0], p_square[1], p_square[2]);
 	faces[1] = TriangleNode(p_square[0], p_square[2], p_square[3]);
+
+	area = 0.0;
+	for (auto& face : faces) {
+		area += glm::length(glm::cross(face.p[1] - face.p[0], face.p[2] - face.p[0])) * .5;
+	}
+}
+
+
+
+
+void TemplateNode::add_plane(std::shared_ptr<PlaneNode> p_plane_) {
+	//center = (center * (float)p_planes.size() + p_plane_->plane_proxy->center) / (float)(p_planes.size() + 1);
+	p_planes.push_back(p_plane_);
+}
+
+
+void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
+	// ---- calcu center ( avg of all planes )
+	// center = glm::vec3(0, 0, 0);
+	// for (const auto& pn : p_planes) {
+	// 	center += pn->plane_proxy->center;
+	// }
+	// center /= (float)p_planes.size();
+
+	// ---- calcu center ( center of plane[0] )
+	center = p_planes[0]->plane_proxy->center;
+
+	// ------ alpha shape
+	// TODO: visualize test
+
+	std::vector<unsigned int> indices;
+	std::vector<glm::vec3> poses;
+	std::vector<Vertex> vertices;
+
+	for (auto& pn : p_planes) {
+		auto& pp = pn->plane_proxy;
+		auto& pd = pp->plane_data;
+		auto& plane = (pd->plane);
+		auto& p2 = *(pd->points_2);
+		//GEO::compute_alphashape_mesh(p2, plane, poses, indices);
+		//GEO::GEN_MESH(p2, plane, poses, indices);
+		
+		GEO::Mesh mesh = GEO::compute_alphashape_mesh(p2);
+		GEO::mesh_to_3d(plane, mesh);
+		GEO::extract_mesh(mesh, poses, indices);
+
+
+		pn->stat = PlaneNode::tied;
+	}
+		for (const auto& pos : poses) {
+			vertices.push_back({ pos });
+		}
+
+
+	// ----- rectangle
+	//std::vector<unsigned int> indices;
+	//std::vector<Vertex> vertices;
+
+	//for (auto& pn : p_planes) {
+	//	//auto& pn = p_planes[0];
+	//	auto& faces = pn->faces;
+	//	for (int i = 0; i < 2; ++i) {
+	//		for (int j = 0; j < 3; ++j) {
+	//			auto& p = faces[i].p[j];
+	//			indices.push_back(vertices.size());
+	//			vertices.push_back({ p });
+	//		}
+	//	}
+	//	pn->stat = PlaneNode::tied;
+	//}
+
+
+	// ---- normalize mesh
+	for (auto& v : vertices) {
+		v.Position -= center;
+	}
+
+	rg = std::make_shared<RenderGeometry>(vertices, indices, shader_);
+
+}
+
+
+void TemplateNode::Draw() {
+	if (rg) {
+		glm::mat4 m_model = glm::translate(glm::mat4(1.0), center);
+		rg->SetModelMatrix(m_model);
+		//rg->SetModelMatrix(glm::mat4(1.0));
+		rg->Draw();
+	}
+}
+
+void TemplateNode::Draw(glm::vec3 pos) {
+	if (rg) {
+		glm::mat4 m_model = glm::translate(glm::mat4(1.0), pos);
+		rg->SetModelMatrix(m_model);
+		//rg->SetModelMatrix(glm::mat4(1.0));
+		rg->Draw();
+	}
+
+}
+
+void TemplateNode::reset() {
+	p_planes.clear();
+	center = glm::vec3(0, 0, 0);
+	rg = nullptr;
 }
 
 
@@ -148,8 +254,8 @@ void FacadeNode::extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes)
 	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 		float(1),
 		12,
-		float(0.5),//float(0.5),
-		float(20),//float(20),
+		float(0.1),//float(0.5),
+		float(10),//float(20),
 		50
 	);
 	auto shader = pcd->shader;

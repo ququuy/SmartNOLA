@@ -241,6 +241,8 @@ public:
 	{
 		if (key == GLFW_KEY_O && action == GLFW_RELEASE)
 			m_status->glob_stat = selecting;
+		if (key == GLFW_KEY_P && action == GLFW_RELEASE)
+			m_status->finish_selecting();
 		if (key == GLFW_KEY_R && action == GLFW_RELEASE)
 			m_status->clear();
 		if (key == GLFW_KEY_I && action == GLFW_RELEASE)

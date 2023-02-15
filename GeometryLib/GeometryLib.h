@@ -44,6 +44,15 @@ namespace MA {
 #include <CGAL/pca_estimate_normals.h>
 #include <CGAL/mst_orient_normals.h>
 #include <CGAL/Polygon_mesh_processing/transform.h>
+/* Alpha Shape */
+#include <CGAL/Alpha_shape_2.h>
+#include <CGAL/Alpha_shape_vertex_base_2.h>
+#include <CGAL/Alpha_shape_face_base_2.h>
+#include <CGAL/Delaunay_triangulation_2.h>
+#include <CGAL/algorithm.h>
+#include <CGAL/assertions.h>
+
+
 
 namespace GEO {
 	typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
@@ -55,7 +64,15 @@ namespace GEO {
 	typedef Kernel::Point_2 Point_2;
 	typedef Kernel::Vector_3 Vector_3;
 	typedef Kernel::Vector_2 Vector_2;
+	typedef Kernel::Line_2                   Line_2;
+	typedef Kernel::Line_3                   Line_3;
+	typedef Kernel::Segment_2				 Segment_2;
+	typedef Kernel::Segment_3				 Segment_3;
+	typedef Kernel::Plane_3                  Plane_3;
+
 	typedef std::array<unsigned char, 4> Color;
+
+	typedef CGAL::Surface_mesh<Kernel::Point_3> Mesh;
 
 	typedef std::tuple<Point_3, Vector_3> PN_3;
 	typedef CGAL::Nth_of_tuple_property_map<0, PN_3> PN3_Point_map;
@@ -70,6 +87,8 @@ namespace GEO {
 	typedef std::vector<PNC_3> PNC3_Range;
 	typedef std::vector<Point_3> Point3_Range;
 	typedef std::vector<Point_2> Point2_Range;
+	typedef std::vector<Segment_3> Segment3_Range;
+	typedef std::vector<Segment_2> Segment2_Range;
 
 	typedef CGAL::Convex_hull_traits_adapter_2<Kernel, CGAL::Pointer_property_map<Point_2>::type > Convex_hull_traits_2;
 
@@ -86,12 +105,22 @@ namespace GEO {
 		};
 	}
 
+
+	// --- alpha shape`
+
+
+	using AlphaShape_Vb = CGAL::Alpha_shape_vertex_base_2<Kernel>;//                   Vb;
+	using AlphaShape_Fb = CGAL::Alpha_shape_face_base_2<Kernel>;//                     Fb;
+	using AlphaShape_Tds = CGAL::Triangulation_data_structure_2<AlphaShape_Vb, AlphaShape_Fb>;//          Tds;
+	using Triangulation_2 = CGAL::Delaunay_triangulation_2<Kernel, AlphaShape_Tds>;//                Triangulation_2;
+	using AlphaShape_2 = CGAL::Alpha_shape_2<Triangulation_2>;//                 Alpha_shape_2;
+
 }
 
 namespace GEO {
 	inline glm::vec3 p3_to_glm(const Point_3& p) { return glm::vec3(p.x(), p.y(), p.z()); }
 	inline glm::vec2 p2_to_glm(const Point_2& p) { return glm::vec2(p.x(), p.y()); }
-	inline Point3_Range PN3Range_to_Point3Range(const PN3_Range& pns) { 
+	inline Point3_Range PN3Range_to_Point3Range(const PN3_Range& pns) {
 		Point3_Range result;
 		for (const auto& pn : pns) {
 			result.push_back(std::get<0>(pn));
@@ -139,7 +168,22 @@ namespace GEO {
 	//void project_points(const Kernel::Plane_3 plane, const Point3_Range& p3_range, Point3_Range& p3_in_plane, Point2_Range& p2_in_plane, Point2_Range& p2_in_convex);
 
 
-	
+	// ------------ AlphaShape
+
+	Segment2_Range compute_alphashape(const std::vector<Point_2>& p2);
+	Mesh compute_alphashape_mesh(const std::vector<Point_2>& p2);
+	void compute_alphashape_mesh(const std::vector<Point_2>& p2,
+		const Plane_3 plane,
+		std::vector<glm::vec3>& poses,
+		std::vector<unsigned int>& indices
+		);
+	Mesh contour_to_mesh(const Segment2_Range& contour);
+	void mesh_to_3d(const Plane_3& plane, Mesh& mesh);
+	void extract_mesh(const Mesh& mesh, 
+		std::vector<glm::vec3>& poses,
+		std::vector<unsigned int>& indices
+		);
+
 }
 
 namespace CGAL {
@@ -223,6 +267,19 @@ namespace ALGO {
 		std::vector<std::vector<glm::vec3>>& clustered_translations
 	);
 
+	// --------------- Mesh Generating
+
+	//void regularize_alpha
+
+	class TemplateProxy {
+	public:
+		std::vector<std::shared_ptr<PlaneProxy>> planes;
+
+		//TemplateProxy() = default;
+		// Q: const params
+		TemplateProxy(const std::vector<std::shared_ptr<PlaneProxy>>& planes_);
+
+	};
 
 }
 

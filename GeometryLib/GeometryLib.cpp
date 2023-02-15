@@ -55,6 +55,7 @@ void GEO::normal_estimate(PN3_Range& pointsv) {
 			= CGAL::compute_average_spacing<Concurrency_tag>
 			(points, nb_neighbors,
 				CGAL::parameters::point_map(PN3_Point_map()));
+		//double spacing = 0.1;
 		// Then, estimate normals with a fixed radius
 		CGAL::pca_estimate_normals<Concurrency_tag>
 			(points,
@@ -97,11 +98,11 @@ std::tuple<size_t, FT> GEO::nearest(Point_3 p, const Point3_Range& range) { retu
 
 //std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points) {
 std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points, const Config_RegionGrowing& conf) {
-	//auto t1 = coloring_PN3(points);
-	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
+	auto t1 = coloring_PN3(points);
+	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
 	normal_estimate(points);
-	//auto t2 = coloring_PN3(points);
-	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
+	auto t2 = coloring_PN3(points);
+	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
 
 
 	// Default parameter values for the data file point_set_2.xyz.
@@ -208,10 +209,11 @@ PNC3_Range GEO::coloring_PN3(const PN3_Range& pn3_range) {
 	for (const auto& pn3 : pn3_range) {
 		Point_3 point = std::get<0>(pn3);
 		Vector_3 normal = std::get<1>(pn3);
+		normal /= normal.squared_length();
 		Color color = {
-			normal.x() * 255,
-			normal.y() * 255,
-			normal.z() * 255, 255
+			normal.x() * 128+128,
+			normal.y() * 128+128,
+			normal.z() * 128+128, 255
 		};
 		pncs.emplace_back(point, normal, color);
 	}
@@ -356,6 +358,202 @@ FT GEO::chamfer_distance(const Point2_Range& X, const Point2_Range& Y) {
 	} sum1 /= (FT)Y.size();
 	return sum0 + sum1;
 }
+
+GEO::Segment2_Range GEO::compute_alphashape(const std::vector<Point_2>& p2) {
+
+	AlphaShape_2 A(p2.begin(), p2.end(),
+		//FT(0.001),
+		FT(0.1),
+		AlphaShape_2::GENERAL);
+
+	Segment2_Range segments;
+
+	/* get alpha edges */
+	AlphaShape_2::Alpha_shape_edges_iterator it = A.alpha_shape_edges_begin(),
+		end = A.alpha_shape_edges_end();
+	for (; it != end; ++it)
+		segments.push_back(A.segment(*it));
+
+	return segments;
+}
+
+
+
+Mesh GEO::compute_alphashape_mesh(const std::vector<Point_2>& p2) {
+	AlphaShape_2 A(p2.begin(), p2.end(),
+		//FT(0.001),
+		FT(0.005),
+		AlphaShape_2::GENERAL);
+
+	std::vector<Segment_2> segments;
+
+	/* get alpha edges */
+	AlphaShape_2::Alpha_shape_edges_iterator it = A.alpha_shape_edges_begin(),
+		end = A.alpha_shape_edges_end();
+	for (; it != end; ++it)
+		segments.push_back(A.segment(*it));
+
+	//A.classify
+		/* get alpha faces */
+	Mesh mesh;
+
+	//for (Triangulation_2::face_handles::iterator it = ) {
+
+	for (Triangulation_2::Face_handle f : A.Triangulation_2::finite_face_handles()) {
+
+		Point_2 p2;
+		Point_3 p3;
+		Mesh::Vertex_index idx[3];
+		for (int i = 0; i < 3; i++) {
+
+			Triangulation_2::Vertex_handle v0 = f->vertex(i);
+			p2 = v0->point();
+			p3 = Point_3(p2[0], p2[1], 0);
+			idx[i] = mesh.add_vertex(p3);
+		}
+		if (A.classify(f) == AlphaShape_2::INTERIOR)
+			mesh.add_face(idx[0], idx[1], idx[2]);
+	}
+
+
+	//Triangulation_2::Face_iterator it = A.Triangulation_2::faces_begin(),
+	//	end = A.Triangulation_2::faces_end();
+	//for (; it != end; ++it) {
+	//	it->
+	//	Mesh::Vertex_index s = mesh.add_vertex(p);
+	//	Mesh::Vertex_index u = mesh.add_vertex(q);
+	//	Mesh::Vertex_index v = mesh.add_vertex(p);
+	//	mesh.add_face(s, u, v);
+
+	//}
+
+	//std::ofstream f("D:\\Codes\\PointsProcessing\\BuildingClustering\\NOLA\\data\\classified\\1_segs\\f_" +
+	//	std::to_string(alpha_id) + ".ply");
+	////CGAL::IO::set_binary_mode(f); // The PLY file will be written in the binary format
+	//CGAL::IO::write_PLY(
+	//	f,
+	//	mesh
+	//);
+	//}
+
+
+	//write_segments(segments, "D:\\Codes\\PointsProcessing\\BuildingClustering\\NOLA\\data\\classified\\1_segs\\alpha" +
+	//	std::to_string(alpha_id++) + ".ply");
+	//regularize_contours(segments);
+
+	return mesh;
+}
+
+
+void GEO::compute_alphashape_mesh(const std::vector<Point_2>& p2,
+	const Plane_3 plane,
+	std::vector<glm::vec3>& poses,
+	std::vector<unsigned int>& indices
+) {
+	//poses.clear();
+	//indices.clear();
+	AlphaShape_2 A(p2.begin(), p2.end(),
+		FT(0.05),
+		//FT(0.005),
+		AlphaShape_2::GENERAL);
+
+	std::vector<Segment_2> segments;
+
+	/* get alpha edges */
+	AlphaShape_2::Alpha_shape_edges_iterator it = A.alpha_shape_edges_begin(),
+		end = A.alpha_shape_edges_end();
+	for (; it != end; ++it)
+		segments.push_back(A.segment(*it));
+
+	//A.classify
+		/* get alpha faces */
+	Mesh mesh;
+
+	//for (Triangulation_2::face_handles::iterator it = ) {
+
+	// TODO: simplify
+	for (Triangulation_2::Face_handle f : A.Triangulation_2::finite_face_handles()) {
+
+		Point_2 p2;
+		Point_3 p3;
+		Mesh::Vertex_index idx_[3];
+		unsigned int idx[3];
+		for (int i = 0; i < 3; i++) {
+
+			Triangulation_2::Vertex_handle v0 = f->vertex(i);
+			p2 = v0->point();
+			p3 = plane.to_3d(p2);// Point_3(p2[0], p2[1], 0);
+			poses.push_back(p3_to_glm(p3));
+			idx[i] = poses.size()-1;
+
+			idx_[i] = mesh.add_vertex(Point_3(p2[0], p2[1], 0));
+		}
+		if (A.classify(f) == AlphaShape_2::INTERIOR) {
+			mesh.add_face(idx_[0], idx_[1], idx_[2]);
+			for (auto i : idx) 
+				indices.push_back(i);
+		}
+	}
+
+
+	std::ofstream f((std::string(SOLUTION_ROOT_PATH) + "/data/output/alpha.ply").c_str());
+	//CGAL::IO::set_binary_mode(f); // The PLY file will be written in the binary format
+	CGAL::IO::write_PLY(
+		f,
+		mesh
+	);
+
+
+	//write_segments(segments, "D:\\Codes\\PointsProcessing\\BuildingClustering\\NOLA\\data\\classified\\1_segs\\alpha" +
+	//	std::to_string(alpha_id++) + ".ply");
+	//regularize_contours(segments);
+
+	//return mesh;
+
+}
+
+
+GEO::Mesh GEO::contour_to_mesh(const Segment2_Range& contour) {
+	GEO::Mesh mesh;
+	// TODO
+
+	return mesh;
+}
+
+
+void GEO::mesh_to_3d(const Plane_3& plane, Mesh& mesh) {
+	// TODO
+	//Mesh new_mesh;
+	for (auto& vid : mesh.vertices()) {
+		Point_3& p = mesh.point(vid);
+		p = plane.to_3d(Point_2(p.x(), p.y()));
+	}
+
+}
+
+
+void GEO::extract_mesh(const Mesh& mesh,
+	std::vector<glm::vec3>& poses,
+	std::vector<unsigned int>& indices) {
+
+	unsigned int idx_offset = poses.size();
+
+	for (auto& vid : mesh.vertices()) {
+		const Point_3& p = mesh.point(vid);
+		poses.push_back(p3_to_glm(p));
+	}
+
+	for (const auto& f : mesh.faces()) {
+		for (const auto& halfedge : mesh.halfedges_around_face(mesh.halfedge(f))) {
+			auto vertex = mesh.target(halfedge);
+			indices.push_back(vertex.idx() + idx_offset);
+		}
+	}
+
+}
+
+
+
 
 //ALGO::PlaneData ALGO::project_points(const Kernel::Plane_3 plane, const Point3_Range& p3_range) {
 //	PlaneData result;

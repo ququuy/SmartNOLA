@@ -15,7 +15,6 @@ void StatusManager::collect_facade_planes() {
 }
 
 void StatusManager::cluster() {
-	//TEMP : cluster
 	ALGO::PlaneData_Range plane_datas;
 	for (const auto& plane_node : plane_nodes) plane_datas.push_back(*(plane_node->plane_proxy->plane_data));
 	plane_nodes.clear();
@@ -26,7 +25,8 @@ void StatusManager::cluster() {
 	GEO::PNC3_Range pnc_clustered_planes = ALGO::extract_cluster_result(planes_clustered);
 	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/wall_planes_clustered.ply").c_str(), pnc_clustered_planes);
 
-	unsigned int cluster_id = 0;
+	unsigned int cluster_id = 1;
+	cluster_size.push_back(0);
     for (const auto& cluster : planes_clustered) {
         glm::vec4 color = glm::vec4{
 				MA::RandomReal(),
@@ -45,7 +45,8 @@ void StatusManager::cluster() {
             auto plane_proxy = std::make_shared<ALGO::PlaneProxy>( plane_data );
 			auto plane_node = std::make_shared<PlaneNode>(plane_proxy, pcd, cluster_id);
 
-			if (cluster.size() > 2) {
+			//if (cluster.size() > 2) {
+			if (plane_node->area <= 8.0) {
 				plane_nodes.push_back(plane_node);
 				plane_nodes.back()->raw_color = color;
 			}
@@ -55,9 +56,20 @@ void StatusManager::cluster() {
 			}
         }
         cluster_id++;
+		cluster_size.push_back(cluster.size());
     }
 
+	for (size_t i = 0; i < cluster_id; ++i) {
+		m_cluster.push_back(i);
+	}
+
 }
+
+size_t StatusManager::find_mc(size_t c) {
+	if (m_cluster[c] != c) m_cluster[c] = find_mc(m_cluster[c]);
+	return m_cluster[c];
+}
+
 
 void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 	std::cout << "calling select" << std::endl;
@@ -80,7 +92,8 @@ void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 			if (glob_stat == selecting) {
 				selected_plane_node->stat = PlaneNode::selected;
 				template_point = ray_origin + ray_t * ray_dir;
-				template_selected = selected_plane_node;
+				//template_selected = selected_plane_node;
+				template_selected->add_plane(selected_plane_node);
 				glob_stat = viewing;
 			}
 			//else if (glob_stat == dragging) {
@@ -90,6 +103,10 @@ void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 			drag_point = template_drag->plane_proxy->center;
 			gap_vector = ray_hit_point - template_point;
 			//}
+
+			unsigned int id = selected_plane_node->cluster_id;
+			size_t sz = cluster_size[id];
+			printf("cluster %d size: %d\n", id, sz);
 		}
 
 	}
@@ -122,21 +139,34 @@ void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 }
 
 
+void StatusManager::finish_selecting() {
+	template_selected->setup(shader_default);
+}
+
+
 
 void StatusManager::search_same_row() {
 	// for wall54.ply
-	const float line_threshold = 0.03;
+	//const float line_threshold = 0.03;
+	const float line_threshold = 0.5;
 	// for wall.ply
 	//const float line_threshold = 0.5;
 
-	glm::vec3 p_origin = template_selected->plane_proxy->center;
+	glm::vec3 p_origin = template_selected->center;
+	size_t target_cluster = find_mc(template_selected->p_planes[0]->cluster_id);
 	generated_poses.push_back(p_origin);
 	for (auto& plane_node : plane_nodes) {
-		if (plane_node->cluster_id != template_selected->cluster_id) continue;
+
+		// ---- filter:
 		glm::vec3 translate = plane_node->plane_proxy->calc_translate(p_origin);
 		//if (translate.y > line_threshold) continue;
 		if (abs(translate.z) > abs(line_threshold)) continue;
 		if (abs(translate.x) > abs(line_threshold)) continue;
+
+		size_t s_cluster = find_mc(plane_node->cluster_id);
+		if (s_cluster != target_cluster) continue;
+
+
 		plane_node->stat = PlaneNode::tied;
 		generated_poses.push_back(plane_node->plane_proxy->center);
 	}
@@ -187,7 +217,8 @@ void StatusManager::generate_t_cluster() {
 
 void StatusManager::drag() {
 	size_t n = generated_poses.size();
-	glm::vec3 translate = drag_point - template_selected->plane_proxy->center;
+	//glm::vec3 translate = drag_point - template_selected->plane_proxy->center;
+	glm::vec3 translate = drag_point - template_selected->center;
 	for (size_t i = 0; i < n; ++i) {
 		glm::vec3 newpos = generated_poses[i];
 		newpos.x += translate.x;
@@ -211,11 +242,12 @@ void StatusManager::set_window_info(unsigned int SCR_WIDTH_, unsigned int SCR_HE
 }
 
 
-void StatusManager::clear() {
+void StatusManager::clear() { // reset
 	generated_poses.clear();
 	for (auto& plane_node : plane_nodes) {
 		plane_node->stat = PlaneNode::normal;
 	}
+	template_selected->reset();
 }
 
 
@@ -248,6 +280,8 @@ void StatusManager::_draw() {
 		for (auto& plane_node : static_plane_nodes) {
 			plane_node->Draw();
 		}
+		// TEMP
+		template_selected->Draw();
 		draw_poses();
 	}
 
@@ -255,11 +289,12 @@ void StatusManager::_draw() {
 
 void StatusManager::draw_poses() {
 	for (const auto& pos : generated_poses) {
-		glm::mat4 m_s = glm::scale(glm::mat4(1.0), glm::vec3(2.0,2.0,2.0));
-		glm::mat4 m_model = glm::translate(glm::mat4(1.0), pos);
-		m_model = m_model * m_s;
-		test_sphere->SetModelMatrix(m_model);
-		test_sphere->Draw();
+		//glm::mat4 m_s = glm::scale(glm::mat4(1.0), glm::vec3(2.0,2.0,2.0));
+		//glm::mat4 m_model = glm::translate(glm::mat4(1.0), pos);
+		//m_model = m_model * m_s;
+		//test_sphere->SetModelMatrix(m_model);
+		//test_sphere->Draw();
+		template_selected->Draw(pos);
 	}
 }
 
@@ -288,6 +323,7 @@ void StatusManager::_update() {
 }
 
 void StatusManager::_initialize() {
+	template_selected = std::make_shared<TemplateNode>();
 
 	//ALGO::init_configs();
 	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(

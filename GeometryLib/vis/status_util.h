@@ -33,6 +33,7 @@ public:
 	void collect_facade_planes();
 
 	void select(glm::vec3 ray_origin, glm::vec3 ray_dir);
+	void finish_selecting();
 	void search_same_row();
 
 	// generators:
@@ -52,6 +53,9 @@ public:
 
 protected:
 
+	std::vector<size_t> m_cluster; // merge-set of cluster_id
+	std::vector<size_t> cluster_size;
+
 	// global variables
 	std::shared_ptr<Sphere> test_sphere;
 	std::vector<std::shared_ptr<FacadeNode>> static_facade_nodes;
@@ -65,8 +69,8 @@ protected:
 
 
 	bool select_success;
-	//std::shared_ptr<PlaneNode> select_result;
-	std::shared_ptr<PlaneNode> template_selected;
+	//std::shared_ptr<PlaneNode> template_selected;
+	std::shared_ptr<TemplateNode> template_selected;
 	std::shared_ptr<PlaneNode> template_drag;
 	glm::vec3 ray_hit_point;
 	glm::vec3 template_point;
@@ -79,5 +83,7 @@ protected:
 
 	void draw_poses();
 	void gen_boundingbox();
+
+	size_t find_mc(size_t c);
 
 };

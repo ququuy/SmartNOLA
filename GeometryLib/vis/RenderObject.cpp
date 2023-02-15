@@ -1,6 +1,6 @@
 #include "RenderObject.h"
 
-RenderObject::RenderObject(std::vector<Vertex> &vertices_, std::vector<unsigned int>& indices_) :
+RenderObject::RenderObject(const std::vector<Vertex> &vertices_, const std::vector<unsigned int>& indices_) :
 vertices(vertices_),
 indices(indices_)
 {
@@ -13,6 +13,8 @@ RenderObject::~RenderObject() {
 	glDeleteBuffers(1, & VBO);
 	glDeleteVertexArrays(1, & VAO);
 }
+
+
 
 void RenderObject::Draw(Shader* shader) {
 	//shader.use();
@@ -62,7 +64,18 @@ void RenderObject::setupMesh() {
 	glBindVertexArray(0);
 }
 
+void RenderGeometry::setup() {
+	//
+}
 
+RenderGeometry::RenderGeometry(const std::vector<Vertex>& vertices_,
+	const std::vector<unsigned int>& indices_,
+	std::shared_ptr<Shader> shader_
+) :
+	shader(shader_)
+{
+	ro = std::make_shared<RenderObject>(vertices_, indices_);
+}
 
 void RenderGeometry::Draw() {
 	shader->use();
@@ -257,3 +270,6 @@ void Sphere::SetPosition(const glm::vec3 position_) {
 glm::vec3 Sphere::GetPosition() {
 	return position;
 }
+
+
+

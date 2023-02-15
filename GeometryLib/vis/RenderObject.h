@@ -24,7 +24,7 @@ public:
     /* Functions */
     //MyMesh(vector<Vertex> _vertices, vector<unsigned int> _indices, vector<Texture> _textures);
     //void readMeshFile(string filename);
-    RenderObject(std::vector<Vertex> &vertices_, std::vector<unsigned int> &indices_);
+    RenderObject(const std::vector<Vertex> &vertices_, const std::vector<unsigned int> &indices_);
     RenderObject() {};
     RenderObject(const RenderObject &renderObject) = default;
     ~RenderObject();
@@ -43,6 +43,10 @@ private:
 class RenderGeometry {
 public:
 	RenderGeometry() = default;
+	RenderGeometry(const std::vector<Vertex>& vertices_,
+		const std::vector<unsigned int>& indices_,
+		std::shared_ptr<Shader> shader_
+	);
 
 	void Draw();
 	void ApplyTransform(glm::mat4 transform);
@@ -57,7 +61,7 @@ protected:
 	std::shared_ptr<RenderObject> ro;
 	glm::mat4 world_transform = glm::mat4(1.0f);
 
-	virtual void setup() = 0;
+	virtual void setup();// = 0;
 };
 
 class PointCloud : public RenderGeometry
@@ -72,7 +76,8 @@ public:
 	void SetPointScale(float s);
 
 protected:
-	float scale = 0.05;
+	//float scale = 0.05;
+	float scale = 0.025;
 	//float scale = 0.005;
 	//float scale = 0.001;
 	void point2mesh(glm::vec3 point, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);

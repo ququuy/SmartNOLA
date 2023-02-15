@@ -21,7 +21,7 @@ public:
 	enum STAT {
 		normal,
 		selected,
-		tied
+		tied,//hide
 	};
 	std::shared_ptr<ALGO::PlaneProxy> plane_proxy;
 	std::shared_ptr<PointCloud> pcd;
@@ -29,6 +29,7 @@ public:
 	glm::vec4 raw_color;
 	TriangleNode faces[2]; // use 2 triangles to represent a square ( bbox of projected plane points )
 	unsigned int cluster_id;
+	float area;
 
 	PlaneNode(
 		std::shared_ptr<ALGO::PlaneProxy> plane_proxy_,
@@ -53,10 +54,19 @@ typedef std::vector<PlaneNode> PlaneNode_Range;
 class TemplateNode {
 	// not used yet
 public:
+	TemplateNode() = default;
 	std::vector<std::shared_ptr<PlaneNode>> p_planes;
+	glm::vec3 center;
+	std::shared_ptr<RenderGeometry> rg = nullptr;
 
 	void add_plane(std::shared_ptr<PlaneNode> p_plane_);
 	void set_status(PlaneNode::STAT stat_);
+	void setup(std::shared_ptr<Shader> shader_);
+	void Draw();
+	void Draw(glm::vec3 pos);
+	void reset();
+
+protected:
 };
 
 class InstanceNode {
