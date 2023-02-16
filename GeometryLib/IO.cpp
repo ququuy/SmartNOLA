@@ -30,3 +30,49 @@ void IO::write_PNC3(const char* filename, const std::vector<GEO::PNC_3>& points)
 			CGAL::IO::PLY_property<unsigned char>("blue"),
 			CGAL::IO::PLY_property<unsigned char>("alpha")));
 }
+
+
+void IO::write_Seg3(const char* filename, const Segment3_Range& segs) {
+	Mesh mesh;
+	for (const auto &seg : segs) {
+		std::vector<Mesh::Vertex_index> mesh_indices;
+		Point_3 p = seg.source();
+		Point_3 q = seg.target();
+
+		Mesh::Vertex_index s = mesh.add_vertex(p);
+		Mesh::Vertex_index u = mesh.add_vertex(q);
+		Mesh::Vertex_index v = mesh.add_vertex(p);
+		mesh.add_face(s, u, v);
+
+	}
+	std::ofstream f(filename);
+	//CGAL::IO::set_binary_mode(f); // The PLY file will be written in the binary format
+	CGAL::IO::write_PLY(
+		f,
+		mesh
+	);
+
+}
+
+void IO::write_Seg2(const char* filename, const Segment2_Range& segs) {
+	Mesh mesh;
+	for (const auto &seg : segs) {
+		std::vector<Mesh::Vertex_index> mesh_indices;
+		Point_3 p = Point_3(seg.source()[0], seg.source()[1], 0);
+		Point_3 q = Point_3(seg.target()[0], seg.target()[1], 0);
+
+		Mesh::Vertex_index s = mesh.add_vertex(p);
+		Mesh::Vertex_index u = mesh.add_vertex(q);
+		Mesh::Vertex_index v = mesh.add_vertex(p);
+		mesh.add_face(s, u, v);
+
+	}
+	std::ofstream f(filename);
+	//CGAL::IO::set_binary_mode(f); // The PLY file will be written in the binary format
+	CGAL::IO::write_PLY(
+		f,
+		mesh
+	);
+
+}
+

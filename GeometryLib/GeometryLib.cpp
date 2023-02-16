@@ -15,7 +15,7 @@ ALGO::Config_RegionGrowing::Config_RegionGrowing(
 ):
 search_sphere_radius(_s),
 k(_k),
-max_distance_to_plane(_md),
+max_distance_to_shape(_md),
 max_accepted_angle(_ma),
 min_region_size(_mr)
 {};
@@ -98,17 +98,17 @@ std::tuple<size_t, FT> GEO::nearest(Point_3 p, const Point3_Range& range) { retu
 
 //std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points) {
 std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points, const Config_RegionGrowing& conf) {
-	auto t1 = coloring_PN3(points);
-	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
+	//auto t1 = coloring_PN3(points);
+	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
 	normal_estimate(points);
-	auto t2 = coloring_PN3(points);
-	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
+	//auto t2 = coloring_PN3(points);
+	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
 
 
 	// Default parameter values for the data file point_set_2.xyz.
 	const FT          search_sphere_radius = conf.search_sphere_radius;
 	const std::size_t k = conf.k;
-	const FT          max_distance_to_plane = conf.max_distance_to_plane;
+	const FT          max_distance_to_plane = conf.max_distance_to_shape;
 	const FT          max_accepted_angle = conf.max_accepted_angle;
 	const std::size_t min_region_size = conf.min_region_size;
 	// Create instances of the classes Neighbor_query and Region_type.
@@ -182,6 +182,75 @@ std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points, const Confi
 
 	return result;
 }
+
+
+
+// --- Normals needed
+std::vector<PN2_Range> GEO::detect_lines_growing(PN2_Range& points, const Config_RegionGrowing& conf) {
+
+	// Default parameter values for the data file point_set_2.xyz.
+	const FT          search_sphere_radius = conf.search_sphere_radius;
+	const std::size_t k = conf.k;
+	const FT          max_distance_to_line = conf.max_distance_to_shape;
+	const FT          max_accepted_angle = conf.max_accepted_angle;
+	const std::size_t min_region_size = conf.min_region_size;
+	// Create instances of the classes Neighbor_query and Region_type.
+	//Sphere_Neighbor_query_2d neighbor_query(
+	//	points,
+	//	search_sphere_radius);
+	K_Neighbor_query_2d neighbor_query(
+		points,
+		k,
+		PN2_Point_map());
+	Region_type_2d region_type(
+		points,
+		max_distance_to_line, max_accepted_angle, min_region_size);
+	// Create an instance of the region growing class.
+	Region_growing_2d region_growing(
+		points, neighbor_query, region_type);
+	// Run the algorithm.
+	std::vector<std::vector<size_t>> regions;
+	region_growing.detect(std::back_inserter(regions));
+	// Print the number of found regions.
+	std::cout << "* " << regions.size() <<
+		" regions have been found"
+		<< std::endl;
+	srand(static_cast<unsigned int>(time(nullptr)));
+	// Iterate through all regions.
+	std::vector<PN2_Range> result;
+	for (const auto& region : regions) {
+		// Generate a random color.
+		//const Color color = {
+		//		static_cast<unsigned char>(rand() % 256),
+		//		static_cast<unsigned char>(rand() % 256),
+		//		static_cast<unsigned char>(rand() % 256) };
+		std::vector<PN_2> pns_in_plane;
+		std::vector<Point_2> points2d;
+		result.push_back(PN2_Range());
+
+		for (const auto index : region) {
+			const auto& key = *(points.begin() + index);
+			Point_2 point = std::get<0>(key);
+			Vector_2 normal = std::get<1>(key);
+			result.back().push_back(key);
+		}
+
+	}
+
+	return result;
+}
+
+
+std::vector<Kernel::Line_2> GEO::extract_lines(const std::vector<Point2_Range>& ranges) {
+	std::vector<Kernel::Line_2> lines(ranges.size());
+	// TODO
+	for (size_t i = 0; i < ranges.size(); ++i) {
+		const auto& pn2_range = ranges[i];
+		CGAL::linear_least_squares_fitting_2(pn2_range.begin(), pn2_range.end(), lines[i], CGAL::Dimension_tag<0>());
+	}
+	return lines;
+}
+
 
 PNC3_Range GEO::coloring_PN3(const std::vector<PN3_Range>& ranges) {
 	PNC3_Range pncs;
@@ -1117,9 +1186,222 @@ void ALGO::translation_clustering(const std::vector<glm::vec3>& poses,
 
 
 
+void ALGO::regularize_alpha_contour(const Segment2_Range& segs_in, Segment2_Range& segs_out) {
+	IO::write_Seg2(IO::FAST_PATH("alpha_before.ply"), segs_in);
+
+	//reg_segs_cgal(segs_in, segs_out);
+	reg_segs_line_fitting(segs_in, segs_out);
+
+	IO::write_Seg2(IO::FAST_PATH("alpha_after.ply"), segs_out);
+}
+
+
+
+void ALGO::sort_points2d(Contour& points) {
+	Point_2 center = center_point(points);
+
+	std::vector<std::pair<FT, Point_2>> angle_with_points;
+	for (const auto& p : points) {
+		angle_with_points.emplace_back(
+			atan2(p.y() - center.y(), p.x() - center.x()),
+			p
+		);
+	}
+	std::sort(angle_with_points.begin(), angle_with_points.end());
+	points.clear();
+	for (const auto& awp : angle_with_points) {
+		points.push_back(awp.second);
+	}
+}
+
+
+PN2_Range ALGO::alpha2pn(const Segment2_Range& segs_in) {
+	//auto segs = segs_in;
+	PN2_Range result;
+	Contour contour;
+	for (const auto& seg : segs_in) contour.push_back(seg.source());
+	sort_points2d(contour);
+
+	size_t n = contour.size();
+	for (size_t i = 0; i < n; ++i) {
+		auto t = contour[(i + 1)%n];
+		auto s = contour[i];
+		Vector_2 dir(s, t);
+		dir /= dir.squared_length(); // normalize
+		dir = Vector_2(dir.y(), -dir.x()); // rotate 90 degree
+		result.emplace_back(
+			s,
+			dir
+		);
+	}
+
+	return result;
+}
+
+
+Direction2_Range ALGO::search_dom_dirs_2div(const Segment2_Range& segs) {
+	FT div_eps = 1e-9;
+	FT angle = M_PI / 2;
+	FT angle_low  = angle - M_PI / 6.0;
+	FT angle_high = angle + M_PI / 6.0;
+
+	while ((angle_high - angle_low) > div_eps) {
+		FT loss = 0;
+		angle = (angle_high + angle_low) * .5;
+		glm::vec2 dom_v[2] = {
+			glm::vec2(cos(angle), sin(angle)),
+			glm::vec2(sin(angle), -cos(angle))
+		};
+
+		//auto 
+
+		for (const auto& seg : segs) {
+			glm::vec2 s = p2_to_glm(seg.source());
+			glm::vec2 t = p2_to_glm(seg.target());
+			glm::vec2 v(t - s); v = glm::normalize(v);
+			size_t id = 0;
+			if (abs(glm::dot(dom_v[1], v)) >
+				abs(glm::dot(dom_v[0], v)) - div_eps) {
+				id = 1; // be more close to dom_v[1] than dom_v[0]
+			}
+			// Not necessary because sin(x) is symmetric about pi/2
+			// if (glm::dot(dom_v[id], v) < div_eps) v = -v;
+			FT contri = cross_2(dom_v[id], v) * glm::length(t-s);
+			loss += contri;
+		}
+
+		if (loss > -div_eps) angle_high = angle;
+		else angle_low = angle;
+		printf(
+			"loss %f, angle %f\n", loss, angle
+		);
+	}
+
+	angle = (angle_high + angle_low) * .5;
+	Direction2_Range ans = {
+		Direction_2(cos(angle), sin(angle)),
+		Direction_2(sin(angle), -cos(angle))
+	};
+	return ans;
+}
+
+
+void ALGO::reg_segs_cgal(const Segment2_Range& segs_in, Segment2_Range& segs_out) {
+	// Args:
+	const FT min_length_2 = FT(0.5);
+	const FT  max_angle_2 = FT(10);
+	const FT max_offset_2 = FT(0.5);
+
+	Contour contour;
+	for (const auto& seg : segs_in) contour.push_back(seg.source());
+	sort_points2d(contour);
+
+	//std::reverse(contour.begin(), contour.end());
+	std::vector<GEO::PNC_3> points_before;
+	for (size_t i = 0; i < contour.size(); ++i) {
+		auto& p = contour[i];
+		points_before.emplace_back(
+			GEO::Point_3(p.x(), p.y(), 0),
+			GEO::Vector_3(0, 0, 0),
+			GEO::Color{ (unsigned char)((float)i / (float)contour.size() * 255) , 0, 0, 255}
+		);
+	}
+	IO::write_PNC3(IO::FAST_PATH("alpha_contour_before.ply"), points_before);
+
+
+
+	const bool is_closed = true;
+	//Contour_Directions directions(
+	//	contour, is_closed, CGAL::parameters::
+	//	minimum_length(min_length_2).maximum_angle(max_angle_2));
+	
+	//std::vector<Direction_2> dirs = {
+	//	Direction_2(Vector_2(0, 1)),
+	//	Direction_2(Vector_2(1, 0))
+	//};
+	std::vector<Direction_2> dirs = search_dom_dirs_2div(segs_in);
+	Contour_Directions_Custom directions(
+		contour, is_closed, dirs);
+
+	Contour contour_regularized;
+	CGAL::Shape_regularization::Contours::regularize_closed_contour(
+		contour, directions, std::back_inserter(contour_regularized),
+		CGAL::parameters::maximum_offset(max_offset_2));
+
+	std::cout << "* number of directions = " <<
+		directions.number_of_directions() << std::endl;
+
+	segs_out.clear();
+	size_t n = contour_regularized.size();
+	for (size_t i = 0; i < n; ++i) {
+		segs_out.emplace_back(contour_regularized[i],
+			contour_regularized[(i + 1) % n]);
+	}
+
+	std::vector<GEO::PNC_3> points;
+	for (const auto& p : contour_regularized) {
+		points.emplace_back(
+			GEO::Point_3(p.x(), p.y(), 0),
+			GEO::Vector_3(0, 0, 0),
+			GEO::Color{ 255, 0, 0, 255 }
+		);
+	}
+	IO::write_PNC3(IO::FAST_PATH("alpha_contour_after.ply"), points);
+}
+
+
+
+void ALGO::reg_segs_line_fitting(const Segment2_Range& segs_in, Segment2_Range& segs_out) {
+	Config_RegionGrowing rg_edges(0.5, 4, 0.5, 50, 5);
+
+
+	auto pn2_range = alpha2pn(segs_in);
+	auto line_points_ranges = detect_lines_growing(pn2_range, rg_edges);
+
+	// --- for check lines
+	PNC3_Range lines_pn3;
+	for (const auto& range : line_points_ranges) {
+		Color color = rand_color();
+		for (const auto& pn2 : range) {
+			auto p = std::get<0>(pn2);
+			auto n = std::get<1>(pn2);
+			lines_pn3.emplace_back(
+				Point_3(p.x(), p.y(), 0),
+				Vector_3(n.x(), n.y(), 0),
+				color
+			);
+		}
+	}
+	IO::write_PNC3(IO::FAST_PATH("lines.ply"), lines_pn3);
+
+	segs_out = segs_in;
+
+}
+
+
+void ALGO::merge_lines(std::vector<PN2_Range>& line_points_ranges) {
+	if (!line_points_ranges.size()) return;
+	std::vector<PN2_Range> result;
+	result.push_back(PN2_Range());
+	
+	for (const auto& range : line_points_ranges) {
+		Line_2 line;
+		CGAL::linear_least_squares_fitting_2(range.begin(), range.end(), line, CGAL::Dimension_tag<0>());
+
+		// simple merge ( just test direction )
+		FT a = line.a();
+		FT b = line.b();
+		
+
+	}
+
+}
+
+
+
 
 FZ::Fuzzy::Fuzzy(const std::vector<Feature>& _features) :
-features(_features)
+	features(_features)
 {
 	N = features.size();
 	M = features[0].size();

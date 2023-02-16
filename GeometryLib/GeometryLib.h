@@ -52,6 +52,9 @@ namespace MA {
 #include <CGAL/algorithm.h>
 #include <CGAL/assertions.h>
 
+/* Shape Regularization */
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Shape_regularization/regularize_contours.h>
 
 
 namespace GEO {
@@ -69,6 +72,7 @@ namespace GEO {
 	typedef Kernel::Segment_2				 Segment_2;
 	typedef Kernel::Segment_3				 Segment_3;
 	typedef Kernel::Plane_3                  Plane_3;
+	typedef Kernel::Direction_2				 Direction_2;
 
 	typedef std::array<unsigned char, 4> Color;
 
@@ -80,6 +84,11 @@ namespace GEO {
 	typedef std::vector<PN_3> PN3_Range;
 
 
+	typedef std::tuple<Point_2, Vector_2> PN_2;
+	typedef CGAL::Nth_of_tuple_property_map<0, PN_2> PN2_Point_map;
+	typedef CGAL::Nth_of_tuple_property_map<1, PN_2> PN2_Normal_map;
+	typedef std::vector<PN_2> PN2_Range;
+
 	typedef std::tuple<Point_3, Vector_3, Color> PNC_3;
 	typedef CGAL::Nth_of_tuple_property_map<0, PNC_3> PNC3_Point_map;
 	typedef CGAL::Nth_of_tuple_property_map<1, PNC_3> PNC3_Normal_map;
@@ -89,10 +98,13 @@ namespace GEO {
 	typedef std::vector<Point_2> Point2_Range;
 	typedef std::vector<Segment_3> Segment3_Range;
 	typedef std::vector<Segment_2> Segment2_Range;
+	typedef std::vector<Direction_2> Direction2_Range;
+	typedef Point2_Range Contour;
 
 	typedef CGAL::Convex_hull_traits_adapter_2<Kernel, CGAL::Pointer_property_map<Point_2>::type > Convex_hull_traits_2;
 
 
+	// ---- plane detection
 	using Sphere_Neighbor_query_3d = CGAL::Shape_detection::Point_set::Sphere_neighbor_query<Kernel, PN3_Range, PN3_Point_map>;
 	using K_Neighbor_query_3d = CGAL::Shape_detection::Point_set::K_neighbor_query<Kernel, PN3_Range, PN3_Point_map>;
 	using Region_type_3d = CGAL::Shape_detection::Point_set::Least_squares_plane_fit_region<Kernel, PN3_Range, PN3_Point_map, PN3_Normal_map>;
@@ -106,18 +118,33 @@ namespace GEO {
 	}
 
 
+	// ---- line detection (2d)
+	using Sphere_Neighbor_query_2d = CGAL::Shape_detection::Point_set::Sphere_neighbor_query<Kernel, PN2_Range, PN2_Point_map>;
+	using K_Neighbor_query_2d = CGAL::Shape_detection::Point_set::K_neighbor_query<Kernel, PN2_Range, PN2_Point_map>;
+	using Region_type_2d = CGAL::Shape_detection::Point_set::Least_squares_line_fit_region<Kernel, PN2_Range, PN2_Point_map, PN2_Normal_map>;
+	//using Region_growing_2d = CGAL::Shape_detection::Region_growing<PN2_Range, Sphere_Neighbor_query_2d, Region_type_2d>;
+	using Region_growing_2d = CGAL::Shape_detection::Region_growing<PN2_Range, K_Neighbor_query_2d, Region_type_2d>;
+
+
+
+
 	// --- alpha shape`
-
-
 	using AlphaShape_Vb = CGAL::Alpha_shape_vertex_base_2<Kernel>;//                   Vb;
 	using AlphaShape_Fb = CGAL::Alpha_shape_face_base_2<Kernel>;//                     Fb;
 	using AlphaShape_Tds = CGAL::Triangulation_data_structure_2<AlphaShape_Vb, AlphaShape_Fb>;//          Tds;
 	using Triangulation_2 = CGAL::Delaunay_triangulation_2<Kernel, AlphaShape_Tds>;//                Triangulation_2;
 	using AlphaShape_2 = CGAL::Alpha_shape_2<Triangulation_2>;//                 Alpha_shape_2;
 
+	// --- shape regularization
+	using Contour_Directions =
+		CGAL::Shape_regularization::Contours::Multiple_directions_2<Kernel, Contour>;
+	using Contour_Directions_Custom =
+		CGAL::Shape_regularization::Contours::User_defined_directions_2<Kernel, Contour>;
+
 }
 
 namespace GEO {
+	//
 	inline glm::vec3 p3_to_glm(const Point_3& p) { return glm::vec3(p.x(), p.y(), p.z()); }
 	inline glm::vec2 p2_to_glm(const Point_2& p) { return glm::vec2(p.x(), p.y()); }
 	inline Point3_Range PN3Range_to_Point3Range(const PN3_Range& pns) {
@@ -127,7 +154,15 @@ namespace GEO {
 		}
 		return result;
 	}
-
+	inline FT cross_2(const glm::vec2& v0, const glm::vec2& v1) { return v0.x * v1.y - v0.y * v1.x; }
+	inline Color rand_color() {
+		const Color color = {
+				static_cast<unsigned char>(rand() % 256),
+				static_cast<unsigned char>(rand() % 256),
+				static_cast<unsigned char>(rand() % 256), 255 };
+		return color;
+	}
+	
 
 	void normal_estimate(PN3_Range& pointsv);
 	Point2_Range normalize_points(const Point2_Range& range);
@@ -148,7 +183,7 @@ namespace GEO {
 	public:
 		FT          search_sphere_radius;// = FT(1);
 		std::size_t k;// = 12;
-		FT          max_distance_to_plane;// = FT(0.5);
+		FT          max_distance_to_shape;// = FT(0.5);
 		FT          max_accepted_angle;// = FT(20);
 		std::size_t min_region_size;// = 50;
 		Config_RegionGrowing(
@@ -166,6 +201,11 @@ namespace GEO {
 	std::vector<PN3_Range> detect_planes_growing(PN3_Range& points, const Config_RegionGrowing& conf);
 	std::vector<Kernel::Plane_3> extract_planes(const std::vector<PN3_Range>& ranges);
 	//void project_points(const Kernel::Plane_3 plane, const Point3_Range& p3_range, Point3_Range& p3_in_plane, Point2_Range& p2_in_plane, Point2_Range& p2_in_convex);
+
+
+	// ---------- line detection
+	std::vector<PN2_Range> detect_lines_growing(PN2_Range& points, const Config_RegionGrowing& conf);
+	std::vector<Kernel::Line_2> extract_lines(const std::vector<Point2_Range>& ranges);
 
 
 	// ------------ AlphaShape
@@ -269,7 +309,16 @@ namespace ALGO {
 
 	// --------------- Mesh Generating
 
-	//void regularize_alpha
+	void regularize_alpha_contour(const Segment2_Range& segs_in, Segment2_Range& segs_out);
+	// --- regularization methods
+	PN2_Range alpha2pn(const Segment2_Range& segs_in);
+	void sort_points2d(Contour& points);
+	void merge_lines(std::vector<PN2_Range>& line_points_ranges);
+	Direction2_Range search_dom_dirs_2div(const Segment2_Range& segs);
+	Direction2_Range search_dom_dirs_ransac(const Segment2_Range& segs);
+	void reg_segs_cgal(const Segment2_Range& segs_in, Segment2_Range& segs_out);
+	void reg_segs_line_fitting(const Segment2_Range& segs_in, Segment2_Range& segs_out);
+
 
 	class TemplateProxy {
 	public:

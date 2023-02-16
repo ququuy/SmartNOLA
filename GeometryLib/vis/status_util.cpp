@@ -10,8 +10,6 @@ void StatusManager::collect_facade_planes() {
 		//facade_node->extract_planes(static_plane_nodes);
 		facade_node->extract_planes();
 	}
-
-
 }
 
 void StatusManager::cluster() {
@@ -59,11 +57,15 @@ void StatusManager::cluster() {
 		cluster_size.push_back(cluster.size());
     }
 
-	for (size_t i = 0; i < cluster_id; ++i) {
-		m_cluster.push_back(i);
-	}
+	// ---- init merge set
+	// for (size_t i = 0; i < cluster_id; ++i) {
+	// 	m_cluster.push_back(i);
+	// }
+	m_cluster.resize(cluster_id);
+	std::iota(m_cluster.begin(), m_cluster.end(), 0);
 
 }
+
 
 size_t StatusManager::find_mc(size_t c) {
 	if (m_cluster[c] != c) m_cluster[c] = find_mc(m_cluster[c]);

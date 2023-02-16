@@ -176,6 +176,10 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 		GEO::mesh_to_3d(plane, mesh);
 		GEO::extract_mesh(mesh, poses, indices);
 
+		GEO::Segment2_Range segs = GEO::compute_alphashape(p2);
+		GEO::Segment2_Range segs_regularized;
+		ALGO::regularize_alpha_contour(segs, segs_regularized);
+
 
 		pn->stat = PlaneNode::tied;
 	}

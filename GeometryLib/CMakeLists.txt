@@ -36,6 +36,14 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 
+target_compile_options(
+    #${target_name} 
+    GeometryLib
+    PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/MP>
+    #PRIVATE $<$<CONFIG:Debug>:/MDd>
+    #PRIVATE $<$<CONFIG:Release>:/MD>
+    )
+
 target_include_directories(GeometryLib PRIVATE ${OSQP_INCLUDE_DIR})
 target_include_directories(GeometryLib PRIVATE ${libpointmatcher_INCLUDE_DIR})
 target_link_directories(GeometryLib PRIVATE ${libpointmatcher_LIBRARIES})
