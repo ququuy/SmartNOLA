@@ -1239,8 +1239,8 @@ void ALGO::translation_clustering(const std::vector<glm::vec3>& poses,
 void ALGO::regularize_alpha_contour(const Segment2_Range& segs_in, Segment2_Range& segs_out) {
 	IO::write_Seg2(IO::FAST_PATH("alpha_before.ply"), segs_in);
 
-	//reg_segs_cgal(segs_in, segs_out);
-	reg_segs_line_fitting(segs_in, segs_out);
+	reg_segs_cgal(segs_in, segs_out);
+	//reg_segs_line_fitting(segs_in, segs_out);
 
 	IO::write_Seg2(IO::FAST_PATH("alpha_after.ply"), segs_out);
 }
@@ -1365,11 +1365,11 @@ void ALGO::reg_segs_cgal(const Segment2_Range& segs_in, Segment2_Range& segs_out
 	//	contour, is_closed, CGAL::parameters::
 	//	minimum_length(min_length_2).maximum_angle(max_angle_2));
 	
-	//std::vector<Direction_2> dirs = {
-	//	Direction_2(Vector_2(0, 1)),
-	//	Direction_2(Vector_2(1, 0))
-	//};
-	std::vector<Direction_2> dirs = search_dom_dirs_2div(segs_in);
+	std::vector<Direction_2> dirs = {
+		Direction_2(Vector_2(0, 1))
+		//Direction_2(Vector_2(1, 0))
+	};
+	//std::vector<Direction_2> dirs = search_dom_dirs_2div(segs_in);
 	Contour_Directions_Custom directions(
 		contour, is_closed, dirs);
 
