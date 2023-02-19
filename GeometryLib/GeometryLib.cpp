@@ -243,12 +243,45 @@ std::vector<PN2_Range> GEO::detect_lines_growing(PN2_Range& points, const Config
 
 std::vector<Kernel::Line_2> GEO::extract_lines(const std::vector<Point2_Range>& ranges) {
 	std::vector<Kernel::Line_2> lines(ranges.size());
-	// TODO
 	for (size_t i = 0; i < ranges.size(); ++i) {
-		const auto& pn2_range = ranges[i];
-		CGAL::linear_least_squares_fitting_2(pn2_range.begin(), pn2_range.end(), lines[i], CGAL::Dimension_tag<0>());
+		const auto& p2_range = ranges[i];
+		CGAL::linear_least_squares_fitting_2(p2_range.begin(), p2_range.end(), lines[i], CGAL::Dimension_tag<0>());
 	}
 	return lines;
+}
+
+
+Segment2_Range GEO::extract_segments(const std::vector<Point2_Range>& ranges) {
+	Segment2_Range segs;
+	for (size_t i = 0; i < ranges.size(); ++i) {
+		Line_2 line;
+		const auto& points_of_line = ranges[i];
+		FT fitting_quality;
+		fitting_quality = linear_least_squares_fitting_2(points_of_line.begin(), points_of_line.end(), line, CGAL::Dimension_tag<0>());
+
+		Point_2 seg_a, seg_b;
+		FT mn = FLT_MAX, mx = -FLT_MAX;
+		FT point_count = points_of_line.size();
+		for (const auto point : points_of_line) {
+			Point_2 point_in_line = line.projection(point);
+			int axis = line.is_vertical();
+			if (mn > point_in_line[axis]) {
+				mn = point_in_line[axis];
+				seg_a = point_in_line;
+			}
+			if (mx < point_in_line[axis]) {
+				mx = point_in_line[axis];
+				seg_b = point_in_line;
+			}
+		}
+		FT seg_length = (seg_a - seg_b) * (seg_a - seg_b);
+		FT density = point_count / seg_length;
+
+		segs.push_back(
+			Segment_2(seg_a, seg_b)
+		);
+	}
+	return segs;
 }
 
 
@@ -585,6 +618,23 @@ void GEO::compute_alphashape_mesh(const std::vector<Point_2>& p2,
 GEO::Mesh GEO::contour_to_mesh(const Segment2_Range& contour) {
 	GEO::Mesh mesh;
 	// TODO
+
+	return mesh;
+}
+
+
+GEO::Mesh GEO::poly_segs_2_mesh(const Segment2_Range& segments) {
+	Mesh mesh;
+	std::vector<Mesh::Vertex_index> vid;
+	for (const auto& seg : segments) {
+		Point_2 p2 = seg.source();
+		vid.push_back(
+			mesh.add_vertex(Point_3(p2.x(), p2.y(), 0))
+		);
+	}
+	for (size_t i = 0, j = 1, k = 2; k < segments.size(); ++j, ++k) {
+		mesh.add_face(vid[i], vid[j], vid[k]);
+	}
 
 	return mesh;
 }
@@ -1352,7 +1402,8 @@ void ALGO::reg_segs_cgal(const Segment2_Range& segs_in, Segment2_Range& segs_out
 
 
 void ALGO::reg_segs_line_fitting(const Segment2_Range& segs_in, Segment2_Range& segs_out) {
-	Config_RegionGrowing rg_edges(0.5, 4, 0.5, 50, 5);
+	//Config_RegionGrowing rg_edges(0.5, 3, 0.2, 30, 5);
+	Config_RegionGrowing rg_edges(0.5, 3, 0.5, 60, 5);
 
 
 	auto pn2_range = alpha2pn(segs_in);
@@ -1374,28 +1425,255 @@ void ALGO::reg_segs_line_fitting(const Segment2_Range& segs_in, Segment2_Range& 
 	}
 	IO::write_PNC3(IO::FAST_PATH("lines.ply"), lines_pn3);
 
-	segs_out = segs_in;
+
+	std::vector<Point2_Range> line_points_ranges0;
+	Point2_Range poly_points;
+	for (const auto& range : line_points_ranges) {
+		line_points_ranges0.push_back(Point2_Range());
+		for (const auto& pn2 : range) {
+			line_points_ranges0.back().push_back(std::get<0>(pn2));
+		}
+	}
+
+	if (line_points_ranges.size() == 2) {
+		auto segs_inter = extract_segments(line_points_ranges0);
+		poly_points.push_back(segs_inter[0].source());
+		poly_points.push_back(segs_inter[0].target());
+		poly_points.push_back(segs_inter[1].source());
+		poly_points.push_back(segs_inter[1].target());
+	}
+	else {
+		auto lines = extract_lines(line_points_ranges0);
+		merge_lines_quad(lines);
+		//merge_lines(lines);
+		poly_points = lines_polygon(lines);
+		sort_points2d(poly_points);
+	}
+
+	for (size_t i = 0; i < poly_points.size(); ++i) {
+		segs_out.emplace_back(
+			poly_points[i],
+			poly_points[(i + 1) % poly_points.size()]
+		);
+	}
+
+	//std::vector<Point2_Range> line_points_ranges0;
+	//for (const auto& range : line_points_ranges) {
+	//	line_points_ranges0.push_back(Point2_Range());
+	//	for (const auto& pn2 : range) {
+	//		line_points_ranges0.back().push_back(std::get<0>(pn2));
+	//	}
+	//}
+	//auto segments = extract_segments(line_points_ranges0);
+	//merge_segments(segments);
+
+	//segs_out = segs_in;
 
 }
 
 
-void ALGO::merge_lines(std::vector<PN2_Range>& line_points_ranges) {
-	if (!line_points_ranges.size()) return;
-	std::vector<PN2_Range> result;
-	result.push_back(PN2_Range());
-	
-	for (const auto& range : line_points_ranges) {
-		Line_2 line;
-		CGAL::linear_least_squares_fitting_2(range.begin(), range.end(), line, CGAL::Dimension_tag<0>());
+void ALGO::merge_lines(std::vector<Line_2>& lines) {
+	// Args:
+	FT threshold_orient = 0.1;
+	FT threshold_offset = 1.0;
 
-		// simple merge ( just test direction )
-		FT a = line.a();
-		FT b = line.b();
-		
+	std::vector<std::vector<Line_2>> result;
+	for (const auto& line : lines) {
+		glm::vec2 p(line.a(), line.b());
+		FT c = line.c();
+		bool fg = false;
+		for (auto& cluster : result) {
+			glm::vec2 p0(0, 0);
+			FT c0 = 0;
+			for (const auto& line0 : cluster) {
+				glm::vec2 pj(line0.a(), line0.b());
+				FT cj = line0.c();
+				p0 += pj;
+				c0 += cj;
+			}
+			p0 /= cluster.size();
+			c0 /= cluster.size();
+			FT distance_orient = glm::length(p0 - p);
+			FT distance_offset = c0 - c;
+			if (distance_orient < threshold_orient + 1e-8 &&
+				distance_offset < threshold_offset + 1e-8
+				) {
+				fg = true;
+				cluster.push_back(line);
+			}
+		}
+		if (!fg) {
+			result.push_back(std::vector<Line_2>());
+			result.back().push_back(line);
+		}
+	}
+	lines.clear();
+	for (const auto& cluster : result) {
+		glm::vec3 p0(0, 0, 0);
+		for (const auto& line0 : cluster) {
+			glm::vec3 pj(line0.a(), line0.b(), line0.c());
+			p0 += pj;
+		}
+		p0 /= cluster.size();
+		lines.emplace_back(p0.x, p0.y, p0.z);
+	}
+}
 
+
+void ALGO::merge_lines_quad(std::vector<Line_2>& lines) {
+	// Args:
+	FT threshold_orient = 0.15;
+	FT threshold_offset = 1.0;
+
+	std::vector<std::vector<Line_2>> result;
+	for (const auto& line : lines) {
+		glm::vec2 p(line.a(), line.b());
+		bool fg = false;
+		for (auto& cluster : result) {
+			glm::vec2 p0(0, 0);
+			for (const auto& line0 : cluster) {
+				glm::vec2 pj(line0.a(), line0.b());
+				FT cj = line0.c();
+				p0 += pj;
+			}
+			p0 /= cluster.size();
+			FT distance_orient = glm::length(p0 - p);
+			if (distance_orient < threshold_orient + 1e-8) {
+				fg = true;
+				cluster.push_back(line);
+			}
+		}
+		if (!fg) {
+			result.push_back(std::vector<Line_2>());
+			result.back().push_back(line);
+		}
+	}
+	assert(result.size() == 2);
+
+	lines.clear();
+	for (const auto& cluster : result) {
+		FT mx_c = -FLT_MAX;
+		FT mn_c =  FLT_MAX;
+		for (const auto& line : cluster) {
+			mx_c = max(mx_c, line.c());
+			mn_c = min(mn_c, line.c());
+		}
+		FT mid_c = (mx_c + mn_c) * .5;
+		std::vector<glm::vec3> ls[2];
+		for (const auto& line : cluster) {
+			FT c = line.c();
+			if (c < mid_c) {
+				ls[0].emplace_back(line.a(), line.b(), line.c());
+			}
+			else {
+				ls[1].emplace_back(line.a(), line.b(), line.c());
+			}
+		}
+
+		for (size_t i = 0; i < 2; ++i) {
+			glm::vec3 line_vector(0, 0, 0);
+			for (const auto& l : ls[i]) {
+				line_vector += l;
+			} line_vector /= ls[i].size();
+			lines.emplace_back(line_vector.x, line_vector.y, line_vector.z);
+		}
 	}
 
 }
+
+
+
+void ALGO::merge_segments(Segment2_Range& segments) {
+	// Args:
+	const FT min_length_2 = FT(0.5);
+	const FT  max_angle_2 = FT(40);
+	const FT max_offset_2 = FT(0.5);
+
+
+	Contour contour;
+	for (const auto& seg : segments) {
+		contour.push_back(seg.source());
+		contour.push_back(seg.target());
+	}
+
+	std::vector<GEO::PNC_3> points_before;
+	for (size_t i = 0; i < contour.size(); ++i) {
+		auto& p = contour[i];
+		points_before.emplace_back(
+			GEO::Point_3(p.x(), p.y(), 0),
+			GEO::Vector_3(0, 0, 0),
+			GEO::Color{ (unsigned char)((float)i / (float)contour.size() * 255) , 0, 0, 255}
+		);
+	}
+	IO::write_PNC3(IO::FAST_PATH("segs_contour_before.ply"), points_before);
+
+
+
+	const bool is_closed = true;
+	Contour_Directions directions(
+		contour, is_closed, CGAL::parameters::
+		minimum_length(min_length_2).maximum_angle(max_angle_2));
+	
+
+	Contour contour_regularized;
+	CGAL::Shape_regularization::Contours::regularize_closed_contour(
+		contour, directions, std::back_inserter(contour_regularized),
+		CGAL::parameters::maximum_offset(max_offset_2));
+
+	std::cout << "* number of directions = " <<
+		directions.number_of_directions() << std::endl;
+
+	Segment2_Range segs_out;
+	segs_out.clear();
+	size_t n = contour_regularized.size();
+	for (size_t i = 0; i < n; ++i) {
+		segs_out.emplace_back(contour_regularized[i],
+			contour_regularized[(i + 1) % n]);
+	}
+
+	std::vector<GEO::PNC_3> points;
+	for (const auto& p : contour_regularized) {
+		points.emplace_back(
+			GEO::Point_3(p.x(), p.y(), 0),
+			GEO::Vector_3(0, 0, 0),
+			GEO::Color{ 255, 0, 0, 255 }
+		);
+	}
+	IO::write_PNC3(IO::FAST_PATH("segs_contour_after.ply"), points);
+
+
+}
+
+Point2_Range ALGO::lines_polygon(const std::vector<Line_2>& lines) {
+	// Args:
+	FT threshold = 0.4;
+	assert(lines.size() == 4);
+	Point2_Range  quadrilateral;
+	//for (size_t i = 0; i < 4; ++i) {
+	for (size_t i = 0; i < 2; ++i) {
+		Line_2 l0 = lines[i];
+		//for (size_t j = i + 1; j < 3; ++j) {
+		for (size_t j = 2; j < 4; ++j) {
+			Line_2 l1 = lines[j];
+			glm::vec2 p0(l0.a(), l0.b());
+			glm::vec2 p1(l1.a(), l1.b());
+			FT distance = glm::length(p0 - p1);
+			//if (distance < threshold) continue;
+
+			const auto result = intersection(l0, l1);
+			if (result) {
+				if (const Point_2* point = boost::get<Point_2>(&*result)) {
+					quadrilateral.push_back(*point);
+				}
+			}
+		}
+	}
+	assert(quadrilateral.size() == 4);
+	sort_points2d(quadrilateral);
+	return quadrilateral;
+}
+
+
 
 
 

@@ -172,14 +172,17 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 		//GEO::compute_alphashape_mesh(p2, plane, poses, indices);
 		//GEO::GEN_MESH(p2, plane, poses, indices);
 		
-		GEO::Mesh mesh = GEO::compute_alphashape_mesh(p2);
-		GEO::mesh_to_3d(plane, mesh);
-		GEO::extract_mesh(mesh, poses, indices);
+		//GEO::Mesh mesh = GEO::compute_alphashape_mesh(p2);
+		//GEO::mesh_to_3d(plane, mesh);
+		//GEO::extract_mesh(mesh, poses, indices);
 
 		GEO::Segment2_Range segs = GEO::compute_alphashape(p2);
 		GEO::Segment2_Range segs_regularized;
 		ALGO::regularize_alpha_contour(segs, segs_regularized);
 
+		GEO::Mesh mesh = GEO::poly_segs_2_mesh(segs_regularized);
+		GEO::mesh_to_3d(plane, mesh);
+		GEO::extract_mesh(mesh, poses, indices);
 
 		pn->stat = PlaneNode::tied;
 	}

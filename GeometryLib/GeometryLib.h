@@ -44,6 +44,7 @@ namespace MA {
 #include <CGAL/pca_estimate_normals.h>
 #include <CGAL/mst_orient_normals.h>
 #include <CGAL/Polygon_mesh_processing/transform.h>
+#include <CGAL/intersections.h>
 /* Alpha Shape */
 #include <CGAL/Alpha_shape_2.h>
 #include <CGAL/Alpha_shape_vertex_base_2.h>
@@ -206,6 +207,7 @@ namespace GEO {
 	// ---------- line detection
 	std::vector<PN2_Range> detect_lines_growing(PN2_Range& points, const Config_RegionGrowing& conf);
 	std::vector<Kernel::Line_2> extract_lines(const std::vector<Point2_Range>& ranges);
+	Segment2_Range extract_segments(const std::vector<Point2_Range>& ranges);
 
 
 	// ------------ AlphaShape
@@ -218,6 +220,7 @@ namespace GEO {
 		std::vector<unsigned int>& indices
 		);
 	Mesh contour_to_mesh(const Segment2_Range& contour);
+	Mesh poly_segs_2_mesh(const Segment2_Range& segments);
 	void mesh_to_3d(const Plane_3& plane, Mesh& mesh);
 	void extract_mesh(const Mesh& mesh, 
 		std::vector<glm::vec3>& poses,
@@ -313,7 +316,10 @@ namespace ALGO {
 	// --- regularization methods
 	PN2_Range alpha2pn(const Segment2_Range& segs_in);
 	void sort_points2d(Contour& points);
-	void merge_lines(std::vector<PN2_Range>& line_points_ranges);
+	void merge_lines(std::vector<Line_2>& lines);
+	void merge_lines_quad(std::vector<Line_2>& lines);
+	void merge_segments(Segment2_Range& segments);
+	Point2_Range lines_polygon(const std::vector<Line_2>& lines);
 	Direction2_Range search_dom_dirs_2div(const Segment2_Range& segs);
 	Direction2_Range search_dom_dirs_ransac(const Segment2_Range& segs);
 	void reg_segs_cgal(const Segment2_Range& segs_in, Segment2_Range& segs_out);
