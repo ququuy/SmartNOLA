@@ -189,6 +189,7 @@ public:
 
 
 	void mouse_pos_impl(GLFWwindow* window, double xpos, double ypos) {
+		m_status->mouse_pos = glm::vec2(xpos/SCR_WIDTH * 2 - 1, -(ypos/SCR_HEIGHT * 2 - 1));
 		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE)
 		{
 			lastX = xpos;
@@ -218,19 +219,21 @@ public:
 	void mouse_click_impl(GLFWwindow* window, int button, int action, int mods) {
 		if (
 			button == GLFW_MOUSE_BUTTON_RIGHT &&
-			action == GLFW_PRESS)
+			//action == GLFW_PRESS)
+			action == GLFW_RELEASE)
 		{
 			//STATUS_SELECTING = true;
 
 			double xpos, ypos;
 			glfwGetCursorPos(window, &xpos, &ypos);
-			mouse_ndc.x = (xpos / SCR_WIDTH) * 2 - 1.0;
-			mouse_ndc.y = (ypos / SCR_HEIGHT) * 2 - 1.0;
-			mouse_ndc.y = -mouse_ndc.y;
+			m_status->select_r(glm::vec2(xpos, ypos));
+			//mouse_ndc.x = (xpos / SCR_WIDTH) * 2 - 1.0;
+			//mouse_ndc.y = (ypos / SCR_HEIGHT) * 2 - 1.0;
+			//mouse_ndc.y = -mouse_ndc.y;
 
-			glm::vec3 w_origin, w_direction;
-			ndc2worldray(*camera, mouse_ndc, w_origin, w_direction);
-			m_status->select(w_origin, w_direction);
+			//glm::vec3 w_origin, w_direction;
+			//ndc2worldray(*camera, mouse_ndc, w_origin, w_direction);
+			//m_status->select(w_origin, w_direction);
 
 			return;
 		}
@@ -239,8 +242,9 @@ public:
 
 	void key_input_impl(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		if (key == GLFW_KEY_O && action == GLFW_RELEASE)
-			m_status->glob_stat = selecting;
+		if (key == GLFW_KEY_O && action == GLFW_RELEASE);
+			
+			//m_status->glob_stat = selecting;
 		if (key == GLFW_KEY_P && action == GLFW_RELEASE)
 			m_status->finish_selecting();
 		if (key == GLFW_KEY_R && action == GLFW_RELEASE)

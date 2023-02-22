@@ -42,6 +42,7 @@ int main() {
     //Sphere sphere(shader);
 
 
+	glEnable(GL_BLEND);
     while (!m_window->should_close())
     {
 

@@ -33,6 +33,7 @@ public:
 	void collect_facade_planes();
 
 	void select(glm::vec3 ray_origin, glm::vec3 ray_dir);
+	void select_r(glm::vec2 scr_pos);
 	void finish_selecting();
 	void search_same_row();
 
@@ -50,6 +51,7 @@ public:
 
 	GLOB_STATUS glob_stat = viewing;
 	DISP_STATUS disp_stat = facades;
+	glm::vec2 mouse_pos;
 
 protected:
 
@@ -58,11 +60,14 @@ protected:
 
 	// global variables
 	std::shared_ptr<Sphere> test_sphere;
+	//std::shared_ptr<UIRectangle> test_rect;
+	std::shared_ptr<SelectNode> select_node;
 	std::vector<std::shared_ptr<FacadeNode>> static_facade_nodes;
 	std::vector<std::shared_ptr<FacadeNode>> facade_nodes;
 	std::vector<std::shared_ptr<PlaneNode>> plane_nodes;
 	std::vector<std::shared_ptr<PlaneNode>> static_plane_nodes;
 	std::shared_ptr<Shader> shader_default;
+	std::shared_ptr<Shader> shader_ui;
 	std::shared_ptr<Camera> camera;
 
 	unsigned int SCR_WIDTH, SCR_HEIGHT;
@@ -83,6 +88,11 @@ protected:
 
 	void draw_poses();
 	void gen_boundingbox();
+	void ndc2worldray(const Camera& camera, const glm::vec2& scr_pos,
+		const unsigned int scr_width,
+		const unsigned int scr_height,
+		glm::vec3& w_origin, glm::vec3& w_direction);
+	void select_planes();
 
 	size_t find_mc(size_t c);
 

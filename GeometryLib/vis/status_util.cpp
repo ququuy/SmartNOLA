@@ -73,6 +73,53 @@ size_t StatusManager::find_mc(size_t c) {
 }
 
 
+void StatusManager::select_r(glm::vec2 scr_pos) {
+	if (disp_stat == planes) {
+		if (glob_stat == viewing) {
+			//select_node->drag(ndc);
+			glob_stat = selecting;
+		}
+		else if (glob_stat == selecting) {
+			select_planes();
+			glob_stat = viewing;
+			select_node->reset();
+		}
+
+	}
+	else if (disp_stat == facades) {
+		glm::vec3 ray_origin, ray_direction;
+		ndc2worldray(*camera, scr_pos, SCR_WIDTH, SCR_HEIGHT, ray_origin, ray_direction);
+
+		std::shared_ptr<FacadeNode> selected_facade_node = nullptr;
+		float ray_t = -1;
+		float tmax = 1000;
+		float tmin = 0.01;
+		size_t index = 0, selected_index = -1;
+		for (auto& facade_node : static_facade_nodes) {
+			float temp_t;
+			if (facade_node->ray_hit(ray_origin, ray_direction, temp_t, tmin, tmax)) {
+				tmax = temp_t;
+				ray_t = temp_t;
+				selected_facade_node = facade_node;
+				selected_index = index;
+			}
+			index++;
+		}
+		if (selected_facade_node) { // select true
+			selected_facade_node->stat = PlaneNode::selected;
+			facade_nodes.push_back(selected_facade_node);
+			for (const auto& plane_node : selected_facade_node->plane_nodes) {
+				plane_nodes.push_back(plane_node);
+			}
+			swap(static_facade_nodes[selected_index], static_facade_nodes.back());
+			static_facade_nodes.pop_back();
+		}
+	}
+}
+
+
+
+
 void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 	std::cout << "calling select" << std::endl;
 	if (disp_stat == planes) {
@@ -250,6 +297,8 @@ void StatusManager::clear() { // reset
 		plane_node->stat = PlaneNode::normal;
 	}
 	template_selected->reset();
+	// TEMP
+	select_node->reset();
 }
 
 
@@ -286,6 +335,7 @@ void StatusManager::_draw() {
 		template_selected->Draw();
 		draw_poses();
 	}
+	if (glob_stat == selecting) select_node->Draw();
 
 }
 
@@ -304,6 +354,9 @@ void StatusManager::_update() {
 	if (glob_stat == generating_1) {
 		search_same_row();
 		glob_stat = viewing;
+	}
+	else if (glob_stat == selecting) {
+		select_node->drag(mouse_pos);
 	}
 	else if (glob_stat == generating_2) {
 		//generate_t_cluster();
@@ -348,6 +401,8 @@ void StatusManager::_initialize() {
 
 	shader_default = std::make_shared<Shader>((std::string(SOLUTION_ROOT_PATH) + "/shaders/default_vs.glsl").c_str(),
 		(std::string(SOLUTION_ROOT_PATH) + "/shaders/default_fs.glsl").c_str());
+	shader_ui = std::make_shared<Shader>((std::string(SOLUTION_ROOT_PATH) + "/shaders/ui_vs.glsl").c_str(),
+		(std::string(SOLUTION_ROOT_PATH) + "/shaders/ui_fs.glsl").c_str());
 
 
 	//   ------- Facades
@@ -458,6 +513,9 @@ void StatusManager::_initialize() {
     //}
 
 	test_sphere = std::make_shared<Sphere>(shader_default);
+	auto rect = std::make_shared<UIRectangle>(shader_ui);
+	select_node = std::make_shared<SelectNode>(rect);
+	//test_rect->update();
 
 	gen_boundingbox();
 }
@@ -485,6 +543,45 @@ void StatusManager::gen_boundingbox() {
 				bbox[1].y = max(plane_node->faces[i].p[j].y, bbox[1].y);
 				bbox[1].z = max(plane_node->faces[i].p[j].z, bbox[1].z);
 			}
+		}
+	}
+}
+
+
+
+void StatusManager::ndc2worldray(const Camera& camera, const glm::vec2& scr_pos,
+	const unsigned int scr_width,
+	const unsigned int scr_height,
+	glm::vec3& w_origin, glm::vec3& w_direction) {
+
+		glm::vec2 ndc = scr_pos;
+		ndc.x = ndc.x / scr_width - 0.5;
+		ndc.y = -(ndc.y / scr_height - 0.5); // [-0.5, 0.5]
+
+		float height = 2.0 * tan(glm::radians(camera.Zoom / 2.0));
+		float width = height * scr_width / scr_height;
+		w_origin = camera.Position;
+		w_direction = glm::vec3(ndc.x * width, ndc.y * height, -1);
+		w_direction = glm::inverse(camera.GetViewMatrix()) *
+			glm::vec4(w_direction, 1.0);
+		w_direction = glm::normalize(w_direction - w_origin);
+}
+
+
+void StatusManager::select_planes() {
+	for (auto& plane_node : plane_nodes) {
+		glm::vec4 pos = glm::vec4(plane_node->plane_proxy->center, 1.0);
+		// MVP transform
+		glm::mat4 model_matrix = plane_node->pcd->GetModelMatrix();
+		glm::mat4 view_matrix = camera->GetViewMatrix();
+		glm::mat4 projection_matrix = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 500.0f);
+
+		glm::vec4 clip = projection_matrix * view_matrix * model_matrix * pos;
+		glm::vec2 ndc = glm::vec2(clip.x, clip.y) / clip.w; // TODO: consider depth occlusion
+
+		if (select_node->inside(ndc)) { // select
+			plane_node->stat = PlaneNode::selected;
+			template_selected->add_plane(plane_node);
 		}
 	}
 }

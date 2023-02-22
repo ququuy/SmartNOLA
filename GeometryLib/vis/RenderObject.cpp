@@ -274,3 +274,48 @@ glm::vec3 Sphere::GetPosition() {
 
 
 
+
+UIRectangle::UIRectangle(std::shared_ptr<Shader> shader_) {
+	shader = shader_;
+	setup();
+}
+
+void UIRectangle::update() {
+
+	glm::mat4 mscale = glm::scale(glm::mat4(1.0), 
+		glm::vec3(abs(B[0] - A[0])*.5f, abs(B[1] - A[1])*.5f, 1.0));
+	glm::mat4 mtranslate = glm::translate(glm::mat4(1.0),
+		glm::vec3((A + B) * 0.5f, 0.0)
+		);
+	world_transform = mtranslate * mscale;
+
+}
+
+void UIRectangle::setup() {
+	color.w = 0.5;
+	// --- generate mesh
+	std::vector<Vertex> vertices;
+	std::vector<unsigned int> indices;
+	for (int i = -1; i <= 1; i+=2) {
+		for (int j = -1; j <= 1; j += 2) {
+			vertices.push_back(
+				Vertex{
+					glm::vec3(i, j, 0)
+					}
+				);
+		}
+	}
+	indices.push_back(0);
+	indices.push_back(1);
+	indices.push_back(3);
+
+	indices.push_back(0);
+	indices.push_back(3);
+	indices.push_back(2);
+
+
+	// TODO:
+	// initialize A, B
+
+	ro = std::make_shared<RenderObject>(vertices, indices);
+}

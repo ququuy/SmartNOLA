@@ -65,6 +65,7 @@ public:
 	void Draw();
 	void Draw(glm::vec3 pos);
 	void reset();
+	void main_plane();
 
 protected:
 };
@@ -88,6 +89,24 @@ public:
 
 
 	std::vector<std::shared_ptr<PlaneNode>> plane_nodes;
+protected:
+
+};
+
+
+class SelectNode {
+public:
+
+	std::shared_ptr<UIRectangle> rect;
+	bool tied = false;
+
+	SelectNode(std::shared_ptr<UIRectangle> rect_);
+
+	void Draw();
+	void reset();
+	bool inside(glm::vec2 point);
+	void drag(glm::vec2 pos);
+
 protected:
 
 };

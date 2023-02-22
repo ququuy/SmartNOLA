@@ -177,6 +177,7 @@ namespace GEO {
 	FT chamfer_distance(const Point2_Range& X, const Point2_Range& Y);
 	Point_2 center_point(const Point2_Range& range);
 	Point_3 center_point(const Point3_Range& range);
+	FT convex_hull_area(const Point2_Range& range);
 
 
 	// ----------- plane detection

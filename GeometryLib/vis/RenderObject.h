@@ -86,7 +86,7 @@ protected:
 
 class Sphere : public RenderGeometry {
 public:
-	Sphere(std::shared_ptr<Shader> shader_);
+	Sphere(std::shared_ptr<Shader> snhader_);
 	void SetPosition(const glm::vec3 position_);
 	glm::vec3 GetPosition();
 
@@ -96,5 +96,23 @@ protected:
 
 	void setup() override;
 };
+
+
+class UIRectangle : public RenderGeometry {
+public:
+
+	// NDC space [-1, 1]
+	glm::vec2 A;
+	glm::vec2 B;
+
+	UIRectangle(std::shared_ptr<Shader> shader_);
+	void update();
+
+protected:
+
+	void setup() override;
+
+};
+
 
 

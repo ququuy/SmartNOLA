@@ -147,6 +147,7 @@ void TemplateNode::add_plane(std::shared_ptr<PlaneNode> p_plane_) {
 
 
 void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
+	main_plane(); // set main plane to index 0
 	// ---- calcu center ( avg of all planes )
 	// center = glm::vec3(0, 0, 0);
 	// for (const auto& pn : p_planes) {
@@ -186,9 +187,9 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 
 		pn->stat = PlaneNode::tied;
 	}
-		for (const auto& pos : poses) {
-			vertices.push_back({ pos });
-		}
+	for (const auto& pos : poses) {
+		vertices.push_back({ pos });
+	}
 
 
 	// ----- rectangle
@@ -244,6 +245,20 @@ void TemplateNode::reset() {
 	rg = nullptr;
 }
 
+
+
+void TemplateNode::main_plane() {
+	size_t m_i = 0;
+	float max_area = -FLT_MAX;
+	for (size_t i = 0; i < p_planes.size(); ++i) {
+		float area = GEO::convex_hull_area(*(p_planes[i]->plane_proxy->plane_data->points_2_convex));
+		if (area > max_area) {
+			max_area = area;
+			m_i = i;
+		}
+	}
+	swap(p_planes[m_i], p_planes[0]);
+}
 
 
 
@@ -317,4 +332,39 @@ void FacadeNode::extract_planes() {
 		plane_nodes.push_back(std::make_shared<PlaneNode>(plane_data, shader));
 	}
 
+}
+
+
+
+SelectNode::SelectNode(std::shared_ptr<UIRectangle> rect_) :
+rect(rect_)
+{}
+
+
+void SelectNode::Draw() {
+	rect->update();
+	rect->Draw();
+}
+
+
+void SelectNode::reset() {
+	tied = false;
+	rect->A = glm::vec2(0, 0);
+	rect->B = glm::vec2(0, 0);
+}
+
+
+bool SelectNode::inside(glm::vec2 point) {
+	return point.x >= min(rect->A.x, rect->B.x) &&
+		point.x <= max(rect->A.x, rect->B.x) &&
+		point.y >= min(rect->A.y, rect->B.y) &&
+		point.y <= max(rect->A.y, rect->B.y);
+}
+
+
+void SelectNode::drag(glm::vec2 pos) {
+	if (tied) rect->B = pos;
+	else {
+		rect->A = pos; tied = true;
+	}
 }

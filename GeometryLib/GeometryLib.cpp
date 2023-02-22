@@ -987,6 +987,21 @@ Point_3 GEO::center_point(const Point3_Range& range) {
 }
 
 
+FT GEO::convex_hull_area(const Point2_Range& range) {
+	FT sum = 0;
+	for (size_t i = 0, j = 1, k = 2; k < range.size(); ++j, ++k) {
+		glm::vec2 pi = p2_to_glm(range[i]);
+		glm::vec2 pj = p2_to_glm(range[j]);
+		glm::vec2 pk = p2_to_glm(range[k]);
+		FT le0 = glm::length(pj - pi);
+		FT le1 = glm::length(pk - pi);
+		sum += le0 * le1;
+	}
+	return sum * .5;
+}
+
+
+
 glm::vec3 ALGO::center_distance(const PlaneData& plane_1, const PlaneData& plane_2) {
 	Point_3 c_1 = center_point(*plane_1.points_3);
 	Point_3 c_2 = center_point(*plane_2.points_3);
