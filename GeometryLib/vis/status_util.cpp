@@ -64,6 +64,7 @@ void StatusManager::cluster() {
 	m_cluster.resize(cluster_id);
 	std::iota(m_cluster.begin(), m_cluster.end(), 0);
 
+	gen_boundingbox();
 }
 
 
@@ -77,12 +78,43 @@ void StatusManager::select_r(glm::vec2 scr_pos) {
 	if (disp_stat == planes) {
 		if (glob_stat == viewing) {
 			//select_node->drag(ndc);
-			glob_stat = selecting;
+			glob_stat = selecting_p;
 		}
-		else if (glob_stat == selecting) {
+		else if (glob_stat == selecting_p) {
 			select_planes();
-			glob_stat = viewing;
+			glob_stat = instancing;// viewing;
 			select_node->reset();
+		}
+		else if (glob_stat == instancing) {
+			glob_stat = selecting_i;
+		}
+		else if (glob_stat == selecting_i) {
+			select_instances();
+			glob_stat = dragging;
+			select_node->reset();
+		}
+		else if (glob_stat == dragging) {
+			glm::vec3 ray_origin, ray_direction;
+			ndc2worldray(*camera, scr_pos, SCR_WIDTH, SCR_HEIGHT, ray_origin, ray_direction);
+
+			std::shared_ptr<PlaneNode> selected_plane_node = nullptr;
+			float ray_t = -1;
+			float tmax = 1000;
+			float tmin = 0.01;
+			for (auto& plane_node : plane_nodes) {
+				float temp_t;
+				if (plane_node->ray_hit(ray_origin, ray_direction, temp_t, tmin, tmax)) {
+					tmax = temp_t;
+					ray_t = temp_t;
+					selected_plane_node = plane_node;
+				}
+			}
+			if (selected_plane_node) { // select true
+				drag_point = selected_plane_node->plane_proxy->center;
+				copy_area(drag_point);
+				glob_stat = instancing;
+			}
+
 		}
 
 	}
@@ -138,7 +170,7 @@ void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 		if (selected_plane_node) { // select true
 			//std::cout << "select true" << std::endl;
 			ray_hit_point = ray_origin + ray_t * ray_dir;
-			if (glob_stat == selecting) {
+			if (glob_stat == selecting_p) {
 				selected_plane_node->stat = PlaneNode::selected;
 				template_point = ray_origin + ray_t * ray_dir;
 				//template_selected = selected_plane_node;
@@ -248,8 +280,7 @@ void StatusManager::generate_t_cluster() {
 	size_t c_id = 0;
 	size_t max_size = 0;
 	for (size_t i = 0; i < clustered_translations.size(); ++i) {
-		//if (max_size < clustered_translations[i].size()) {
-		//	max_size = clustered_translations[i].size();
+		//if (max_size < clustered_translations[i].size()) { //	max_size = clustered_translations[i].size();
 		//	c_id = i;
 		//}
 		if (clustered_translations.size() < 3) continue;
@@ -263,6 +294,80 @@ void StatusManager::generate_t_cluster() {
 }
 
 
+
+std::pair<glm::vec3, float> StatusManager::nearby_instance(glm::vec3 position, size_t cid) {
+	// Args:
+	// float threshold = 3.0;
+	
+	float min_distance = FLT_MAX;
+	glm::vec3 translate;
+
+	for (const auto& plane_node : plane_nodes) {
+		size_t c = plane_node->cluster_id;
+		glm::vec3 center = plane_node->plane_proxy->center;
+		float distance = glm::length(center-position);
+		
+		// if (threshold < distance) continue;
+		if (min_distance > distance) {
+			min_distance = distance;
+			translate = center - position;
+		}
+	}
+
+	return std::make_pair(translate, min_distance);
+}
+
+
+bool StatusManager::copy_area(glm::vec3 start_pos) {
+	// Args:
+	float threshold = 1.0;
+
+	if (
+		start_pos.x < bbox[0].x ||
+		start_pos.x > bbox[1].x ||
+		start_pos.y < bbox[0].y ||
+		start_pos.y > bbox[1].y ||
+		start_pos.z < bbox[0].z ||
+		start_pos.z > bbox[1].z
+		) return false;
+
+	// collect corresponding translates
+	if (template_selected == nullptr) return false;
+	size_t cid = template_selected->p_planes[0]->cluster_id;
+	std::vector<std::pair<glm::vec3, float> > distances;
+	for (const auto& pos : area_poses) {
+		auto [trans, dis] = nearby_instance(pos + start_pos, cid);
+		if (dis > threshold) continue;
+		distances.push_back(std::make_pair(trans, dis));
+	}
+
+	// calcu final trans
+	glm::vec3 final_trans(0,0,0);
+	for (const auto& d : distances) {
+		final_trans += d.first;
+	}
+	final_trans /= (float)distances.size();
+	// NOTE: No Local Alignment Now
+	final_trans = glm::vec3(0,0,0);
+
+	// copy poses
+	for (const auto& pos : area_poses) {
+		generated_poses.push_back(pos + start_pos + final_trans);
+	};// area_poses.clear();
+	delta_pos = (start_pos + final_trans) - ref_pos;
+
+	//return distances.size() > 0;
+	return true;
+}
+
+
+void StatusManager::copy_copy() {
+	glm::vec3 delta_pos0 = delta_pos;
+	glm::vec3 cur_pos = ref_pos + delta_pos0 + delta_pos0;
+	while (copy_area(cur_pos)) {
+		cur_pos += delta_pos0;
+	}
+}
 
 void StatusManager::drag() {
 	size_t n = generated_poses.size();
@@ -292,7 +397,9 @@ void StatusManager::set_window_info(unsigned int SCR_WIDTH_, unsigned int SCR_HE
 
 
 void StatusManager::clear() { // reset
+	glob_stat = viewing;
 	generated_poses.clear();
+	area_poses.clear();
 	for (auto& plane_node : plane_nodes) {
 		plane_node->stat = PlaneNode::normal;
 	}
@@ -335,7 +442,8 @@ void StatusManager::_draw() {
 		template_selected->Draw();
 		draw_poses();
 	}
-	if (glob_stat == selecting) select_node->Draw();
+	if (glob_stat == selecting_p ||
+		glob_stat == selecting_i) select_node->Draw();
 
 }
 
@@ -351,23 +459,23 @@ void StatusManager::draw_poses() {
 }
 
 void StatusManager::_update() {
-	if (glob_stat == generating_1) {
-		search_same_row();
-		glob_stat = viewing;
-	}
-	else if (glob_stat == selecting) {
+	if (glob_stat == selecting_p || glob_stat == selecting_i) {
 		select_node->drag(mouse_pos);
 	}
-	else if (glob_stat == generating_2) {
-		//generate_t_cluster();
-		generate();
-		glob_stat = viewing;
-	}
-	else if (glob_stat == dragging) {
-		//generate_t_cluster();
-		drag();
-		glob_stat = viewing;
-	}
+	//if (glob_stat == generating_1) {
+	//	search_same_row();
+	//	glob_stat = viewing;
+	//}
+	//else if (glob_stat == generating_2) {
+	//	//generate_t_cluster();
+	//	generate();
+	//	glob_stat = viewing;
+	//}
+	//else if (glob_stat == dragging) {
+	//	//generate_t_cluster();
+	//	//drag();
+	//	//glob_stat = viewing;
+	//}
 
 
 	glm::mat4 view_matrix = camera->GetViewMatrix();
@@ -517,7 +625,6 @@ void StatusManager::_initialize() {
 	select_node = std::make_shared<SelectNode>(rect);
 	//test_rect->update();
 
-	gen_boundingbox();
 }
 
 void StatusManager::_setup(std::shared_ptr<Camera> camera_) {
@@ -545,6 +652,9 @@ void StatusManager::gen_boundingbox() {
 			}
 		}
 	}
+	glm::vec3 exp(1, 1, 1);
+	bbox[0] -= exp;
+	bbox[1] += exp;
 }
 
 
@@ -583,5 +693,31 @@ void StatusManager::select_planes() {
 			plane_node->stat = PlaneNode::selected;
 			template_selected->add_plane(plane_node);
 		}
+	}
+}
+
+
+void StatusManager::select_instances() {
+	area_poses.clear();
+	for (auto& gpos : generated_poses) {
+		glm::vec4 pos(gpos, 1.0);
+		// MVP transform
+		glm::mat4 model_matrix = glm::mat4(1.0);// glm::translate(glm::mat4(1.0), pos);
+		glm::mat4 view_matrix = camera->GetViewMatrix();
+		glm::mat4 projection_matrix = glm::perspective(glm::radians(camera->Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.01f, 500.0f);
+
+		glm::vec4 clip = projection_matrix * view_matrix * model_matrix * pos;
+		glm::vec2 ndc = glm::vec2(clip.x, clip.y) / clip.w; // TODO: consider depth occlusion
+
+		if (select_node->inside(ndc)) { // select
+			area_poses.push_back(gpos);
+		}
+	}
+	for (size_t i = 1; i < area_poses.size(); ++i) {
+		if (area_poses[i].y > area_poses[0].y) std::swap(area_poses[0], area_poses[i]);
+	} 
+	ref_pos = area_poses[0];
+	for (size_t i = area_poses.size()-1; ~i; --i) {
+		area_poses[i] -= area_poses[0];
 	}
 }

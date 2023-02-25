@@ -292,7 +292,8 @@ void UIRectangle::update() {
 }
 
 void UIRectangle::setup() {
-	color.w = 0.5;
+	color[0] = 0.5;
+	color[3] = 0.5;
 	// --- generate mesh
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;

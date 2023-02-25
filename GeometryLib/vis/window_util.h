@@ -250,12 +250,14 @@ public:
 		if (key == GLFW_KEY_R && action == GLFW_RELEASE)
 			m_status->clear();
 		if (key == GLFW_KEY_I && action == GLFW_RELEASE)
-			m_status->glob_stat = generating_1;
+			m_status->search_same_row();
 		if (key == GLFW_KEY_U && action == GLFW_RELEASE)
-			m_status->glob_stat = generating_2;
-		if (key == GLFW_KEY_Y && action == GLFW_RELEASE) {
-			m_status->glob_stat = dragging;
-		}
+			m_status->copy_copy();
+		//if (key == GLFW_KEY_U && action == GLFW_RELEASE);
+		//	m_status->glob_stat = generating_2;
+		//if (key == GLFW_KEY_Y && action == GLFW_RELEASE) {
+		//	m_status->glob_stat = dragging;
+		//}
 
 		if (key == GLFW_KEY_C && action == GLFW_RELEASE) {
 			m_status->cluster();

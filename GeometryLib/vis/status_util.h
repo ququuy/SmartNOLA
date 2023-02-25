@@ -8,7 +8,9 @@
 
 enum GLOB_STATUS { // action
 	viewing,
-	selecting,
+	selecting_p,
+	instancing,
+	selecting_i,
 	dragging,
 	generating_1,
 	generating_2
@@ -41,6 +43,11 @@ public:
 	void generate();
 	void generate_t_cluster();
 	void cluster();
+
+
+	std::pair<glm::vec3, float> nearby_instance(glm::vec3 position, size_t cid);
+	bool copy_area(glm::vec3 start_pos);
+	void copy_copy();
 	
 
 	void drag();
@@ -83,6 +90,9 @@ protected:
 	glm::vec3 gap_vector;
 
 	std::vector<glm::vec3> generated_poses;
+	std::vector<glm::vec3> area_poses; // relative poses
+	glm::vec3 ref_pos, delta_pos; // relative poses
+
 
 	glm::vec3 bbox[2];
 
@@ -93,6 +103,7 @@ protected:
 		const unsigned int scr_height,
 		glm::vec3& w_origin, glm::vec3& w_direction);
 	void select_planes();
+	void select_instances();
 
 	size_t find_mc(size_t c);
 
