@@ -57,6 +57,12 @@ namespace MA {
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Shape_regularization/regularize_contours.h>
 
+//#include <CGAL/squared_distance_2.h> //for 2D functions
+#include <CGAL/squared_distance_3.h> //for 3D functions
+
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/Polygon_mesh_processing/connected_components.h>
+#include <CGAL/boost/graph/copy_face_graph.h>
 
 namespace GEO {
 	typedef CGAL::Exact_predicates_inexact_constructions_kernel Kernel;
@@ -73,7 +79,10 @@ namespace GEO {
 	typedef Kernel::Segment_2				 Segment_2;
 	typedef Kernel::Segment_3				 Segment_3;
 	typedef Kernel::Plane_3                  Plane_3;
+	typedef Kernel::Triangle_3               Triangle_3;
+	typedef Kernel::Triangle_2               Triangle_2;
 	typedef Kernel::Direction_2				 Direction_2;
+	typedef CGAL::Polyhedron_3<Kernel>             Polyhedron_3;
 
 	typedef std::array<unsigned char, 4> Color;
 
@@ -148,6 +157,8 @@ namespace GEO {
 	//
 	inline glm::vec3 p3_to_glm(const Point_3& p) { return glm::vec3(p.x(), p.y(), p.z()); }
 	inline glm::vec2 p2_to_glm(const Point_2& p) { return glm::vec2(p.x(), p.y()); }
+	inline Point_3 glm_to_p3(const glm::vec3& p) { return Point_3(p.x, p.y, p.z); }
+	inline Point_2 glm_to_p2(const glm::vec2& p) { return Point_2(p.x, p.y); }
 	inline Point3_Range PN3Range_to_Point3Range(const PN3_Range& pns) {
 		Point3_Range result;
 		for (const auto& pn : pns) {
@@ -178,6 +189,8 @@ namespace GEO {
 	Point_2 center_point(const Point2_Range& range);
 	Point_3 center_point(const Point3_Range& range);
 	FT convex_hull_area(const Point2_Range& range);
+	Point3_Range sample_points(const Mesh& mesh);
+	void sample_points(const Mesh& mesh, Point3_Range& result);
 
 
 	// ----------- plane detection

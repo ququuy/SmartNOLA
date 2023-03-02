@@ -161,9 +161,8 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 	// ------ alpha shape
 	// TODO: visualize test
 
-	std::vector<unsigned int> indices;
 	std::vector<glm::vec3> poses;
-	std::vector<Vertex> vertices;
+	GEO::Point3_Range points3d;
 
 	for (auto& pn : p_planes) {
 		auto& pp = pn->plane_proxy;
@@ -184,6 +183,8 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 		GEO::Mesh mesh = GEO::poly_segs_2_mesh(segs_regularized);
 		GEO::mesh_to_3d(plane, mesh);
 		GEO::extract_mesh(mesh, poses, indices);
+		if (mesh.faces().size() >= 1)
+			GEO::sample_points(mesh, points3d);
 
 		pn->stat = PlaneNode::tied;
 	}
@@ -214,6 +215,10 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 	for (auto& v : vertices) {
 		v.Position -= center;
 	}
+	for (const auto& p3d : points3d) {
+		glm::vec3 p = GEO::p3_to_glm(p3d);
+		points.push_back(p - center);
+	}
 
 	rg = std::make_shared<RenderGeometry>(vertices, indices, shader_);
 
@@ -241,6 +246,9 @@ void TemplateNode::Draw(glm::vec3 pos) {
 
 void TemplateNode::reset() {
 	p_planes.clear();
+	indices.clear();
+	vertices.clear();
+	points.clear();
 	center = glm::vec3(0, 0, 0);
 	rg = nullptr;
 }
@@ -259,6 +267,35 @@ void TemplateNode::main_plane() {
 	}
 	swap(p_planes[m_i], p_planes[0]);
 }
+
+
+
+float TemplateNode::distance_p2tri(const glm::vec3& point,
+	const glm::vec3& tp0, const glm::vec3& tp1, const glm::vec3& tp2) {
+	auto p = GEO::glm_to_p3(point); 
+	auto p0 = GEO::glm_to_p3(tp0);
+	auto p1 = GEO::glm_to_p3(tp1);
+	auto p2 = GEO::glm_to_p3(tp2);
+	GEO::Triangle_3 triangle(p0, p1, p2);
+
+	return CGAL::squared_distance(p, triangle);
+}
+
+
+float TemplateNode::distance_p2m(const glm::vec3& p) {
+	float distance = FLT_MAX;
+	for (size_t i = 0; i < indices.size(); i += 3) {
+		float di = distance_p2tri(p,
+			vertices[indices[i]].Position,
+			vertices[indices[i+1]].Position,
+			vertices[indices[i+2]].Position
+			);
+		distance = std::min(di, distance);
+	}
+	return distance;
+}
+
+
 
 
 
@@ -355,10 +392,10 @@ void SelectNode::reset() {
 
 
 bool SelectNode::inside(glm::vec2 point) {
-	return point.x >= min(rect->A.x, rect->B.x) &&
-		point.x <= max(rect->A.x, rect->B.x) &&
-		point.y >= min(rect->A.y, rect->B.y) &&
-		point.y <= max(rect->A.y, rect->B.y);
+	return point.x >= std::min(rect->A.x, rect->B.x) &&
+		point.x <= std::max(rect->A.x, rect->B.x) &&
+		point.y >= std::min(rect->A.y, rect->B.y) &&
+		point.y <= std::max(rect->A.y, rect->B.y);
 }
 
 

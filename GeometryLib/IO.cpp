@@ -32,6 +32,12 @@ void IO::write_PNC3(const char* filename, const std::vector<GEO::PNC_3>& points)
 }
 
 
+void IO::write_Point3(const char* filename, const std::vector<GEO::Point_3>& points) {
+	std::ofstream f(filename, std::ios::binary);
+	CGAL::IO::write_PLY(f, points);
+}
+
+
 void IO::write_Seg3(const char* filename, const Segment3_Range& segs) {
 	Mesh mesh;
 	for (const auto &seg : segs) {

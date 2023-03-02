@@ -418,6 +418,10 @@ void StatusManager::_draw() {
 	//	plane_node->Draw();
 	//}
 	//draw_poses();
+	if (glob_stat == result) {
+		if (result_pcd != nullptr) result_pcd->Draw();
+		return;
+	}
 
 	// ----- for building mode
 	if (disp_stat == facades) {
@@ -642,13 +646,13 @@ void StatusManager::gen_boundingbox() {
 	for (const auto& plane_node : plane_nodes) {
 		for (size_t i = 0; i < 2; ++i) {
 			for (size_t j = 0; j < 3; ++j) {
-				bbox[0].x = min(plane_node->faces[i].p[j].x, bbox[0].x);
-				bbox[0].y = min(plane_node->faces[i].p[j].y, bbox[0].y);
-				bbox[0].z = min(plane_node->faces[i].p[j].z, bbox[0].z);
+				bbox[0].x = std::min(plane_node->faces[i].p[j].x, bbox[0].x);
+				bbox[0].y = std::min(plane_node->faces[i].p[j].y, bbox[0].y);
+				bbox[0].z = std::min(plane_node->faces[i].p[j].z, bbox[0].z);
 
-				bbox[1].x = max(plane_node->faces[i].p[j].x, bbox[1].x);
-				bbox[1].y = max(plane_node->faces[i].p[j].y, bbox[1].y);
-				bbox[1].z = max(plane_node->faces[i].p[j].z, bbox[1].z);
+				bbox[1].x = std::max(plane_node->faces[i].p[j].x, bbox[1].x);
+				bbox[1].y = std::max(plane_node->faces[i].p[j].y, bbox[1].y);
+				bbox[1].z = std::max(plane_node->faces[i].p[j].z, bbox[1].z);
 			}
 		}
 	}
@@ -720,4 +724,67 @@ void StatusManager::select_instances() {
 	for (size_t i = area_poses.size()-1; ~i; --i) {
 		area_poses[i] -= area_poses[0];
 	}
+}
+
+
+
+// Collect Result
+void StatusManager::final_step() {
+	if (template_selected == nullptr) {
+		std::cout << " empty template error " << std::endl;
+		return;
+	}
+	// Args:
+	//float threshold = 0.05;
+	float threshold = 0.015;
+
+	std::vector<GEO::Point_3> p3s;
+	result_points.clear();
+	for (const auto& facade_node : facade_nodes) {
+		for (const auto& plane_node : facade_node->plane_nodes) {
+			const auto& plane_data = plane_node->plane_proxy->plane_data;
+			const auto& plane = plane_data->plane;
+			const auto& points_of_plane = *(plane_data->points_3);
+			for (const auto& p : points_of_plane) {
+				glm::vec3 pvec = GEO::p3_to_glm(p);
+				float distance = FLT_MAX;
+				for (const auto& pos : generated_poses) {
+					float d0 = template_selected->distance_p2m(pvec - pos);
+					distance = std::min(d0, distance);
+				}
+				//float distance = CGAL::squared_distance(p, plane);
+				// delete nearby points
+				if (distance < threshold) continue;
+				result_points.push_back(GEO::p3_to_glm(p));
+				p3s.push_back(p);
+			}
+		}
+	}
+	for (const auto& facade_node : static_facade_nodes) {
+		for (const auto& plane_node : facade_node->plane_nodes) {
+			const auto& plane_data = plane_node->plane_proxy->plane_data;
+			const auto& plane = plane_data->plane;
+			const auto& points_of_plane = *(plane_data->points_3);
+			for (const auto& p : points_of_plane) {
+				//float distance = CGAL::squared_distance(p, plane);
+				//if (distance > threshold) continue;
+				result_points.push_back(GEO::p3_to_glm(p));
+				p3s.push_back(p);
+			}
+		}
+	}
+	for (const auto& pos : generated_poses) {
+		for (const auto& p : template_selected->points) {
+			glm::vec3 pf = pos + p;
+			result_points.push_back(pf);
+			p3s.push_back(GEO::glm_to_p3(pf));
+		}
+	}
+
+	result_pcd = std::make_shared<PointCloud>(result_points, shader_default);
+	glob_stat = result;
+
+	// write result
+	IO::write_Point3(IO::FAST_PATH("final.ply"), p3s);
+
 }

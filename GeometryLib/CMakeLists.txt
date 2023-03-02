@@ -3,6 +3,9 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
+add_definitions( -DNOMINMAX -D_USE_MATH_DEFINES  )
+
+
 include(D:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake)
 # CGAL
 find_package(CGAL CONFIG REQUIRED)

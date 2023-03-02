@@ -12,6 +12,7 @@ enum GLOB_STATUS { // action
 	instancing,
 	selecting_i,
 	dragging,
+	result,
 	generating_1,
 	generating_2
 };
@@ -48,6 +49,7 @@ public:
 	std::pair<glm::vec3, float> nearby_instance(glm::vec3 position, size_t cid);
 	bool copy_area(glm::vec3 start_pos);
 	void copy_copy();
+	void final_step();
 	
 
 	void drag();
@@ -76,6 +78,8 @@ protected:
 	std::shared_ptr<Shader> shader_default;
 	std::shared_ptr<Shader> shader_ui;
 	std::shared_ptr<Camera> camera;
+	std::vector<glm::vec3> result_points;
+	std::shared_ptr<PointCloud> result_pcd;
 
 	unsigned int SCR_WIDTH, SCR_HEIGHT;
 

@@ -384,8 +384,8 @@ Point2_Range GEO::normalize_points(const Point2_Range& range) {
 	center /= range.size();
 	for (auto p : range) {
 		glm::vec2 pvec = glm::vec2(p.x(), p.y());
-		scale = max(scale, abs(pvec-center)[0]);
-		scale = max(scale, abs(pvec-center)[1]);
+		scale = std::max(scale, abs(pvec-center)[0]);
+		scale = std::max(scale, abs(pvec-center)[1]);
 	}
 
 	for (auto& p : range) {
@@ -425,9 +425,9 @@ Point3_Range GEO::normalize_points(const Point3_Range& range) {
 	center /= range.size();
 	for (auto p : range) {
 		glm::vec3 pvec = glm::vec3(p.x(), p.y(), p.z());
-		scale = max(scale, abs(pvec-center)[0]);
-		scale = max(scale, abs(pvec-center)[1]);
-		scale = max(scale, abs(pvec-center)[2]);
+		scale = std::max(scale, (FT)abs(pvec-center)[0]);
+		scale = std::max(scale, (FT)abs(pvec-center)[1]);
+		scale = std::max(scale, (FT)abs(pvec-center)[2]);
 	}
 	glm::mat4 m_translate = glm::translate(glm::mat4(1.0), -center);
     glm::mat4 m_scale = glm::scale(glm::mat4(1.0), glm::vec3(1.0/scale, 1.0/scale, 1.0/scale));
@@ -810,17 +810,17 @@ FT ALGO::plane_distance_square(const Point2_Range& p_convex1, const Point2_Range
 	}
 	for (size_t i = 0; i < 2; ++i) {
 		for (size_t j = 0; j < points[i].size(); ++j) {
-			left_up[i].x = min(left_up[i].x, points[i][j].x());
-			left_up[i].y = min(left_up[i].y, points[i][j].y());
+			left_up[i].x = std::min(left_up[i].x, (float)points[i][j].x());
+			left_up[i].y = std::min(left_up[i].y, (float)points[i][j].y());
 
-			left_down[i].x = min(left_down[i].x, points[i][j].x());
-			left_down[i].y = max(left_down[i].y, points[i][j].y());
+			left_down[i].x = std::min(left_down[i].x, (float)points[i][j].x());
+			left_down[i].y = std::max(left_down[i].y, (float)points[i][j].y());
 
-			right_up[i].x = max(right_up[i].x, points[i][j].x());
-			right_up[i].y = min(right_up[i].y, points[i][j].y());
+			right_up[i].x = std::max(right_up[i].x, (float)points[i][j].x());
+			right_up[i].y = std::min(right_up[i].y, (float)points[i][j].y());
 
-			right_down[i].x = max(left_down[i].x, points[i][j].x());
-			right_down[i].y = max(left_down[i].y, points[i][j].y());
+			right_down[i].x = std::max(left_down[i].x, (float)points[i][j].x());
+			right_down[i].y = std::max(left_down[i].y, (float)points[i][j].y());
 		}
 	}
 
@@ -933,10 +933,10 @@ void ALGO::plane_clustering_fuzzy(const PlaneData_Range& planes_input, std::vect
 		const auto& convex_p2 = normalize_points_T(*plane_data.points_2_convex);
 		float mx[2] = {-99999,-99999}, mn[2] = {99999, 99999};
 		for (const auto& p2 : convex_p2) {
-			mx[0] = max(mx[0], p2.x());
-			mx[1] = max(mx[1], p2.y());
-			mn[0] = min(mn[0], p2.x());
-			mn[1] = min(mn[1], p2.y());
+			mx[0] = std::max(mx[0], (float)p2.x());
+			mx[1] = std::max(mx[1], (float)p2.y());
+			mn[0] = std::min(mn[0], (float)p2.x());
+			mn[1] = std::min(mn[1], (float)p2.y());
 		}
 		features.back().push_back(mx[0] - mn[0]);
 		features.back().push_back(mx[1] - mn[1]);
@@ -1001,6 +1001,32 @@ FT GEO::convex_hull_area(const Point2_Range& range) {
 }
 
 
+Point3_Range GEO::sample_points(const Mesh& mesh) {
+	// Args:
+	size_t v_num_points = 4000;
+
+	Polyhedron_3 poly_mesh;
+	CGAL::copy_face_graph(mesh, poly_mesh);
+
+	Point3_Range points;
+	CGAL::Random_points_in_triangle_mesh_3<Polyhedron_3> g(poly_mesh);
+	std::copy_n(g, v_num_points, std::back_inserter(points));
+	return points;
+}
+
+
+void GEO::sample_points(const Mesh& mesh, Point3_Range& result) {
+	// Args:
+	size_t v_num_points = 4000;
+
+	Polyhedron_3 poly_mesh;
+	CGAL::copy_face_graph(mesh, poly_mesh);
+
+	CGAL::Random_points_in_triangle_mesh_3<Polyhedron_3> g(poly_mesh);
+	std::copy_n(g, v_num_points, std::back_inserter(result));
+}
+
+
 
 glm::vec3 ALGO::center_distance(const PlaneData& plane_1, const PlaneData& plane_2) {
 	Point_3 c_1 = center_point(*plane_1.points_3);
@@ -1015,7 +1041,7 @@ FT ALGO::point_plane_distance(const glm::vec3 point, const PlaneData& plane_data
 		auto plane = plane_data.plane;
 		Point_3 p3 = plane.to_3d(p2);
 		glm::vec3 p3vec = p3_to_glm(p3);
-		min_dist = min(min_dist, glm::length(point - p3vec));
+		min_dist = std::min(min_dist, (FT)glm::length(point - p3vec));
 	}
 	return min_dist;
 }
@@ -1156,11 +1182,11 @@ void ALGO::PlaneProxy::bbox_3d(glm::vec3& a, glm::vec3& b, glm::vec3& c, glm::ve
 	bbox[1].x = -999999;
 	bbox[1].y = -999999;
 	for (const auto& p2d : points2d) {
-		bbox[0].x = min(p2d.x(), bbox[0].x);
-		bbox[0].y = min(p2d.y(), bbox[0].y);
+		bbox[0].x = std::min((float)p2d.x(), bbox[0].x);
+		bbox[0].y = std::min((float)p2d.y(), bbox[0].y);
 
-		bbox[1].x = max(p2d.x(), bbox[1].x);
-		bbox[1].y = max(p2d.y(), bbox[1].y);
+		bbox[1].x = std::max((float)p2d.x(), bbox[1].x);
+		bbox[1].y = std::max((float)p2d.y(), bbox[1].y);
 	}
 	Point_3 a_ = plane.to_3d(
 		Point_2(bbox[0].x, bbox[0].y)
@@ -1570,8 +1596,8 @@ void ALGO::merge_lines_quad(std::vector<Line_2>& lines) {
 		FT mx_c = -FLT_MAX;
 		FT mn_c =  FLT_MAX;
 		for (const auto& line : cluster) {
-			mx_c = max(mx_c, line.c());
-			mn_c = min(mn_c, line.c());
+			mx_c = std::max(mx_c, line.c());
+			mn_c = std::min(mn_c, line.c());
 		}
 		FT mid_c = (mx_c + mn_c) * .5;
 		std::vector<glm::vec3> ls[2];
@@ -1789,7 +1815,7 @@ void FZ::Fuzzy::normalize_simularity(bool positive) {
 	float mx = -1;
 	for (size_t i = 0; i < N; ++i) {
 		for (size_t j = 0; j < N; ++j) {
-			mx = max(mx, s_matrix[i][j]);
+			mx = std::max(mx, s_matrix[i][j]);
 		}
 	}
 	float factor = 1.0 / mx;

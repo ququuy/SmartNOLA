@@ -56,18 +56,24 @@ class TemplateNode {
 public:
 	TemplateNode() = default;
 	std::vector<std::shared_ptr<PlaneNode>> p_planes;
+
 	glm::vec3 center;
 	std::shared_ptr<RenderGeometry> rg = nullptr;
+	std::vector<unsigned int> indices;
+	std::vector<Vertex> vertices;
+	std::vector<glm::vec3> points;
 
 	void add_plane(std::shared_ptr<PlaneNode> p_plane_);
-	void set_status(PlaneNode::STAT stat_);
 	void setup(std::shared_ptr<Shader> shader_);
 	void Draw();
 	void Draw(glm::vec3 pos);
 	void reset();
 	void main_plane();
+	float distance_p2m(const glm::vec3& p);
 
 protected:
+	float distance_p2tri(const glm::vec3& point,
+		const glm::vec3& tp0, const glm::vec3& tp1, const glm::vec3& tp2);
 };
 
 class InstanceNode {

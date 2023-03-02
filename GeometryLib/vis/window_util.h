@@ -253,6 +253,8 @@ public:
 			m_status->search_same_row();
 		if (key == GLFW_KEY_U && action == GLFW_RELEASE)
 			m_status->copy_copy();
+		if (key == GLFW_KEY_F && action == GLFW_RELEASE)
+			m_status->final_step();
 		//if (key == GLFW_KEY_U && action == GLFW_RELEASE);
 		//	m_status->glob_stat = generating_2;
 		//if (key == GLFW_KEY_Y && action == GLFW_RELEASE) {
