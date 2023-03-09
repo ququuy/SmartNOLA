@@ -49,6 +49,7 @@ public:
 	std::pair<glm::vec3, float> nearby_instance(glm::vec3 position, size_t cid);
 	bool copy_area(glm::vec3 start_pos);
 	void copy_copy();
+	void stash_instances();
 	void final_step();
 	
 
@@ -96,6 +97,11 @@ protected:
 	std::vector<glm::vec3> generated_poses;
 	std::vector<glm::vec3> area_poses; // relative poses
 	glm::vec3 ref_pos, delta_pos; // relative poses
+
+
+	// final result:
+	std::vector<std::shared_ptr<TemplateNode>> stashed_templates;
+	std::vector<std::vector<glm::vec3>> stashed_poses;
 
 
 	glm::vec3 bbox[2];

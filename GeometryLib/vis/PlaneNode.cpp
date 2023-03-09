@@ -226,7 +226,7 @@ void TemplateNode::setup(std::shared_ptr<Shader> shader_) {
 
 
 void TemplateNode::Draw() {
-	if (rg) {
+	if (rg != nullptr) {
 		glm::mat4 m_model = glm::translate(glm::mat4(1.0), center);
 		rg->SetModelMatrix(m_model);
 		//rg->SetModelMatrix(glm::mat4(1.0));
@@ -341,12 +341,19 @@ void FacadeNode::extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes)
 
 
 void FacadeNode::extract_planes() {
-
+//
+//	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+//		float(1),
+//		12,
+//		float(0.2),//float(0.5),
+//		float(20),//float(20),
+//		50
+//	);
 	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 		float(1),
 		12,
-		float(0.2),//float(0.5),
-		float(20),//float(20),
+		float(0.8),//float(0.5),
+		float(30),//float(20),
 		50
 	);
 	auto shader = pcd->shader;
@@ -364,7 +371,8 @@ void FacadeNode::extract_planes() {
 	for (const auto& pn3_range : points_of_planes) {
 		GEO::Point3_Range p3_range = GEO::PN3Range_to_Point3Range(pn3_range);
 		std::shared_ptr<ALGO::PlaneData> plane_data =
-			std::make_shared<ALGO::PlaneData>(ALGO::project_points(p3_range));
+			//std::make_shared<ALGO::PlaneData>(ALGO::project_points(p3_range));
+			std::make_shared<ALGO::PlaneData>(ALGO::get_plane_data(p3_range));
 
 		plane_nodes.push_back(std::make_shared<PlaneNode>(plane_data, shader));
 	}

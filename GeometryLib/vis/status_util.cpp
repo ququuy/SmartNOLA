@@ -44,7 +44,8 @@ void StatusManager::cluster() {
 			auto plane_node = std::make_shared<PlaneNode>(plane_proxy, pcd, cluster_id);
 
 			//if (cluster.size() > 2) {
-			if (plane_node->area <= 8.0) {
+			// if (plane_node->area <= 8.0) {
+			if (plane_node->area <= 14.0) {
 				plane_nodes.push_back(plane_node);
 				plane_nodes.back()->raw_color = color;
 			}
@@ -241,8 +242,8 @@ void StatusManager::search_same_row() {
 		// ---- filter:
 		glm::vec3 translate = plane_node->plane_proxy->calc_translate(p_origin);
 		//if (translate.y > line_threshold) continue;
-		if (abs(translate.z) > abs(line_threshold)) continue;
-		if (abs(translate.x) > abs(line_threshold)) continue;
+		//if (abs(translate.z) > abs(line_threshold)) continue;
+		//if (abs(translate.x) > abs(line_threshold)) continue;
 
 		size_t s_cluster = find_mc(plane_node->cluster_id);
 		if (s_cluster != target_cluster) continue;
@@ -403,7 +404,8 @@ void StatusManager::clear() { // reset
 	for (auto& plane_node : plane_nodes) {
 		plane_node->stat = PlaneNode::normal;
 	}
-	template_selected->reset();
+	//template_selected->reset();
+	template_selected = std::make_shared<TemplateNode>();
 	// TEMP
 	select_node->reset();
 }
@@ -459,6 +461,12 @@ void StatusManager::draw_poses() {
 		//test_sphere->SetModelMatrix(m_model);
 		//test_sphere->Draw();
 		template_selected->Draw(pos);
+	}
+	size_t n = stashed_templates.size();
+	for (size_t i = 0; i < n; ++i) {
+		for (const auto& pos : stashed_poses[i]) {
+			stashed_templates[i]->Draw(pos);
+		}
 	}
 }
 
@@ -519,9 +527,9 @@ void StatusManager::_initialize() {
 
 	//   ------- Facades
 	// ----- Region Growing & Coloring Result 
-	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C.ply").c_str());
-	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/wall_54.ply").c_str());
-	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/wall.ply").c_str());
+	// GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f07A_Test.ply").c_str());
+	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_Test.ply").c_str());
 	std::vector<GEO::PN3_Range> points_of_planes = GEO::detect_planes_growing(points, rg_facade);
 	//std::vector<GEO::PN3_Range> points_of_planes = GEO::detect_planes_growing(points, rg_default);
 	GEO::PNC3_Range pnc_planes = GEO::coloring_PN3(points_of_planes);
@@ -728,6 +736,14 @@ void StatusManager::select_instances() {
 
 
 
+void StatusManager::stash_instances() {
+	stashed_templates.push_back(template_selected);
+	stashed_poses.push_back(generated_poses);
+	clear();
+}
+
+
+
 // Collect Result
 void StatusManager::final_step() {
 	if (template_selected == nullptr) {
@@ -736,7 +752,7 @@ void StatusManager::final_step() {
 	}
 	// Args:
 	//float threshold = 0.05;
-	float threshold = 0.015;
+	float threshold = 0.005;
 
 	std::vector<GEO::Point_3> p3s;
 	result_points.clear();
@@ -748,11 +764,18 @@ void StatusManager::final_step() {
 			for (const auto& p : points_of_plane) {
 				glm::vec3 pvec = GEO::p3_to_glm(p);
 				float distance = FLT_MAX;
-				for (const auto& pos : generated_poses) {
-					float d0 = template_selected->distance_p2m(pvec - pos);
-					distance = std::min(d0, distance);
+				size_t n = stashed_templates.size();
+				for (size_t i = 0; i < n; ++i) {
+					for (const auto& pos : stashed_poses[i]) {
+						float d0 = stashed_templates[i]->distance_p2m(pvec - pos);
+						distance = std::min(d0, distance);
+					}
 				}
-				//float distance = CGAL::squared_distance(p, plane);
+
+				//for (const auto& pos : generated_poses) {
+				//	float d0 = template_selected->distance_p2m(pvec - pos);
+				//	distance = std::min(d0, distance);
+				//}
 				// delete nearby points
 				if (distance < threshold) continue;
 				result_points.push_back(GEO::p3_to_glm(p));
@@ -773,13 +796,26 @@ void StatusManager::final_step() {
 			}
 		}
 	}
-	for (const auto& pos : generated_poses) {
-		for (const auto& p : template_selected->points) {
-			glm::vec3 pf = pos + p;
-			result_points.push_back(pf);
-			p3s.push_back(GEO::glm_to_p3(pf));
+
+	size_t n = stashed_templates.size();
+	for (size_t i = 0; i < n; ++i) {
+		for (const auto& pos : stashed_poses[i]) {
+			for (const auto& p : stashed_templates[i]->points) {
+				glm::vec3 pf = pos + p;
+				result_points.push_back(pf);
+				p3s.push_back(GEO::glm_to_p3(pf));
+			}
 		}
+
 	}
+
+	//for (const auto& pos : generated_poses) {
+	//	for (const auto& p : template_selected->points) {
+	//		glm::vec3 pf = pos + p;
+	//		result_points.push_back(pf);
+	//		p3s.push_back(GEO::glm_to_p3(pf));
+	//	}
+	//}
 
 	result_pcd = std::make_shared<PointCloud>(result_points, shader_default);
 	glob_stat = result;

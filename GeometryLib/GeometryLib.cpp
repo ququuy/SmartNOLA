@@ -465,7 +465,8 @@ GEO::Segment2_Range GEO::compute_alphashape(const std::vector<Point_2>& p2) {
 
 	AlphaShape_2 A(p2.begin(), p2.end(),
 		//FT(0.001),
-		FT(0.1),
+		//FT(0.1),
+		FT(0.5),
 		AlphaShape_2::GENERAL);
 
 	Segment2_Range segments;
