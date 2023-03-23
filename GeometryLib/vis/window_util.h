@@ -269,7 +269,10 @@ public:
 
 		if (key == GLFW_KEY_B && action == GLFW_RELEASE) {
 			if (m_status->disp_stat == facades) m_status->disp_stat = planes;
-			else if (m_status->disp_stat == planes) m_status->disp_stat = facades;
+			else if (m_status->disp_stat == planes) {
+				m_status->back_to_facades_view();
+				m_status->disp_stat = facades;
+			}
 		}
 
 

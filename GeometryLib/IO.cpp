@@ -7,7 +7,9 @@ PN3_Range IO::read_PLY(const char* filepath) {
 	PN3_Range points;
 	if (!CGAL::IO::read_PLY_with_properties(in,
 		std::back_inserter(points),
-		CGAL::IO::make_ply_point_reader(PN3_Point_map())))
+		CGAL::IO::make_ply_point_reader(PN3_Point_map()),
+		 CGAL::IO::make_ply_normal_reader(PN3_Normal_map()))
+		)
 	{
 		std::cerr << "Error: cannot read file " << filepath << std::endl;
 	}

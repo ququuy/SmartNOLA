@@ -6,6 +6,21 @@
 
 using namespace GEO;
 
+
+ALGO::Config_RANSAC::Config_RANSAC(
+	std::size_t _min_points,
+	FT			_probability,
+	FT          _epsilon,
+	FT          _cluster_epsilon,
+	FT          _normal_threshold
+) :
+	min_points(_min_points),
+	probability(_probability),
+	epsilon(_epsilon),
+	cluster_epsilon(_cluster_epsilon),
+	normal_threshold(_normal_threshold)
+{};
+
 ALGO::Config_RegionGrowing::Config_RegionGrowing(
 	FT _s,
 	std::size_t _k,
@@ -40,6 +55,47 @@ min_region_size(_mr)
 //
 //}
 
+void GEO::normal_estimate(PN3_Range& pointsv, FT spacing_) {
+
+	std::list<PN_3> points(pointsv.begin(), pointsv.end());
+
+	// Estimates normals direction.
+	// Note: pca_estimate_normals() requiresa range of points
+	// as well as property maps to access each point's position and normal.
+	const int nb_neighbors = 16; // K-nearest neighbors = 3 rings
+	{
+		// First compute a spacing using the K parameter
+		//double spacing
+		//	= CGAL::compute_average_spacing<Concurrency_tag>
+		//	(points, nb_neighbors,
+		//		CGAL::parameters::point_map(PN3_Point_map()));
+		double spacing = spacing_;
+		// Then, estimate normals with a fixed radius
+		CGAL::pca_estimate_normals<Concurrency_tag>
+			(points,
+				0, // when using a neighborhood radius, K=0 means no limit on the number of neighbors returns
+				CGAL::parameters::point_map(PN3_Point_map())
+				.normal_map(PN3_Normal_map())
+				.neighbor_radius(2. * spacing)); // use 2*spacing as neighborhood radius
+	}
+
+	// Orients normals.
+	// Note: mst_orient_normals() requires a range of points
+	// as well as property maps to access each point's position and normal.
+	std::list<PN_3>::iterator unoriented_points_begin =
+		CGAL::mst_orient_normals(points, nb_neighbors,
+			CGAL::parameters::point_map(PN3_Point_map())
+			.normal_map(PN3_Normal_map()));
+	// Optional: delete points with an unoriented normal
+	// if you plan to call a reconstruction algorithm that expects oriented normals.
+	points.erase(unoriented_points_begin, points.end());
+
+	pointsv = PN3_Range(points.begin(), points.end());
+
+}
+
+
+
 
 void GEO::normal_estimate(PN3_Range& pointsv) {
 
@@ -55,7 +111,7 @@ void GEO::normal_estimate(PN3_Range& pointsv) {
 			= CGAL::compute_average_spacing<Concurrency_tag>
 			(points, nb_neighbors,
 				CGAL::parameters::point_map(PN3_Point_map()));
-		//double spacing = 0.1;
+		//double spacing = 1.0;
 		// Then, estimate normals with a fixed radius
 		CGAL::pca_estimate_normals<Concurrency_tag>
 			(points,
@@ -98,11 +154,6 @@ std::tuple<size_t, FT> GEO::nearest(Point_3 p, const Point3_Range& range) { retu
 
 //std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points) {
 std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points, const Config_RegionGrowing& conf) {
-	//auto t1 = coloring_PN3(points);
-	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
-	normal_estimate(points);
-	//auto t2 = coloring_PN3(points);
-	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
 
 
 	// Default parameter values for the data file point_set_2.xyz.
@@ -177,6 +228,96 @@ std::vector<PN3_Range> GEO::detect_planes_growing(PN3_Range& points, const Confi
 	//		pns_in_plane.push_back(p);
 	//
 	//    }
+
+	}
+
+	return result;
+}
+
+
+
+std::vector<PN3_Range> GEO::detect_planes_ransac(PN3_Range& points, const Config_RANSAC& conf) {
+	normal_estimate(points);
+
+		// Instantiate shape detection engine.
+	Efficient_ransac ransac;
+
+	// Provide input data.
+	ransac.set_input(points);
+	// Register detection of planes.
+	ransac.add_shape_factory<RANSAC_Plane>();
+
+	// Param for 1: min_points=50
+    // Set parameters for shape detection.
+    Efficient_ransac::Parameters parameters;
+    // Set probability to miss the largest primitive at each iteration.
+    // parameters.probability = 0.05;
+    // Detect shapes with at least 200 points.
+    parameters.min_points = 50;
+    // Set maximum Euclidean distance between a point and a shape.
+	//parameters.epsilon = 0.01; // for 1
+	//parameters.epsilon = 0.005; // for 2
+	parameters.epsilon =1; // for 2
+    // Set maximum Euclidean distance between points to be clustered.
+    //parameters.cluster_epsilon = 0.005;
+    // Set maximum normal deviation.
+    // 0.9 < dot(surface_normal, point_normal);
+    //parameters.normal_threshold = 0.9;
+    // Detect shapes.
+    // ransac.detect(parameters);
+
+	//parameters.min_points = conf.min_points;
+	////parameters.probability = conf.probability;
+	//parameters.epsilon = conf.epsilon;
+	//parameters.cluster_epsilon = conf.cluster_epsilon;
+	//parameters.normal_threshold = conf.normal_threshold;
+
+
+	// Measure time before setting up the shape detection.
+	CGAL::Timer time;
+	time.start();
+	// Build internal data structures.
+	ransac.preprocess();
+	// Measure time after preprocessing.
+	time.stop();
+	std::cout << "preprocessing took: " << time.time() * 1000 << "ms" << std::endl;
+	// Perform detection several times and choose result with the highest coverage.
+	Efficient_ransac::Shape_range shapes = ransac.shapes();
+	FT best_coverage = 0;
+	
+	for (std::size_t i = 0; i < 3; ++i) {
+		// Detect shapes.
+		ransac.detect(parameters);
+		// Compute coverage, i.e. ratio of the points assigned to a shape.
+		FT coverage =
+			FT(points.size() - ransac.number_of_unassigned_points()) / FT(points.size());
+		// Choose result with the highest coverage.
+		if (coverage > best_coverage) {
+			best_coverage = coverage;
+			// Efficient_ransac::shapes() provides
+			// an iterator range to the detected shapes.
+			shapes = ransac.shapes();
+		}
+	}
+
+
+	std::vector<PN3_Range> result;
+
+	Efficient_ransac::Shape_range::iterator it = shapes.begin();
+
+	while (it != shapes.end()) {
+		result.push_back(PN3_Range());
+		
+		boost::shared_ptr<Efficient_ransac::Shape> shape = *it;
+		//FT sum_distances = 0;
+		std::vector<std::size_t>::const_iterator
+			index_it = (*it)->indices_of_assigned_points().begin();
+		while (index_it != (*it)->indices_of_assigned_points().end()) {
+			PN_3& p = *(points.begin() + (*index_it));
+			Point_3 point = std::get<0>(p);
+			result.back().push_back(p);
+			index_it++;
+		}
 
 	}
 
@@ -917,7 +1058,8 @@ void ALGO::plane_clustering_fuzzy(const PlaneData_Range& planes_input, std::vect
 	// FT _threshold_shape = 0.1;
 	// for wall_54.ply
 	//FT _miu = 0.995;
-	FT _miu = 0.996;
+	//FT _miu = 0.996;
+	FT _miu = 0.995;
 	//FT _threshold_shape = 0.05;
 
 	// Variables Initialize

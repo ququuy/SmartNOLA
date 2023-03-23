@@ -24,6 +24,7 @@ void StatusManager::cluster() {
 	IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/wall_planes_clustered.ply").c_str(), pnc_clustered_planes);
 
 	unsigned int cluster_id = 1;
+	cluster_size.clear();
 	cluster_size.push_back(0);
     for (const auto& cluster : planes_clustered) {
         glm::vec4 color = glm::vec4{
@@ -45,7 +46,8 @@ void StatusManager::cluster() {
 
 			//if (cluster.size() > 2) {
 			// if (plane_node->area <= 8.0) {
-			if (plane_node->area <= 14.0) {
+			//if (plane_node->area <= 14.0) {
+			if (plane_node->area <= 20.0) {
 				plane_nodes.push_back(plane_node);
 				plane_nodes.back()->raw_color = color;
 			}
@@ -152,6 +154,15 @@ void StatusManager::select_r(glm::vec2 scr_pos) {
 
 
 
+void StatusManager::back_to_facades_view() {
+	for (const auto& facade_node : facade_nodes) {
+		static_facade_nodes.push_back(facade_node);
+	}
+	facade_nodes.clear();
+	plane_nodes.clear();
+}
+
+
 
 void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 	std::cout << "calling select" << std::endl;
@@ -223,6 +234,7 @@ void StatusManager::select(glm::vec3 ray_origin, glm::vec3 ray_dir) {
 
 void StatusManager::finish_selecting() {
 	template_selected->setup(shader_default);
+	generated_poses.push_back(template_selected->center);
 }
 
 
@@ -512,9 +524,20 @@ void StatusManager::_initialize() {
 	GEO::Config_RegionGrowing rg_facade = GEO::Config_RegionGrowing(
 		float(1),
 		12,
-		float(0.5),
-		float(90),
+		//float(0.5),
+		float(1.0),
+		//float(40),
+		float(60),
 		500
+		//20
+	);
+
+	GEO::Config_RANSAC ransac_facade = GEO::Config_RANSAC(
+		100,
+		 -1,
+		1,
+		1,
+		90
 	);
 
 
@@ -527,9 +550,28 @@ void StatusManager::_initialize() {
 
 	//   ------- Facades
 	// ----- Region Growing & Coloring Result 
-	// GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C_q.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f07A_Test.ply").c_str());
-	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/b28_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f11_Test_N.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/b56_Test_N.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_noise_Test_N.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_noise2_Test_N.ply").c_str());
+	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_Test_N.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_low_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/my-f08-1.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/my-f08-3.ply").c_str());
+
+	// normal estimateh
+	//auto t1 = GEO::coloring_PN3(points);
+	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
+	//GEO::normal_estimate(points, 1.0);
+	//auto t2 = GEO::coloring_PN3(points);
+	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
+
+	//std::vector<GEO::PN3_Range> points_of_planes = GEO::detect_planes_ransac(points, ransac_facade);
 	std::vector<GEO::PN3_Range> points_of_planes = GEO::detect_planes_growing(points, rg_facade);
 	//std::vector<GEO::PN3_Range> points_of_planes = GEO::detect_planes_growing(points, rg_default);
 	GEO::PNC3_Range pnc_planes = GEO::coloring_PN3(points_of_planes);
@@ -726,8 +768,11 @@ void StatusManager::select_instances() {
 		}
 	}
 	for (size_t i = 1; i < area_poses.size(); ++i) {
-		if (area_poses[i].y > area_poses[0].y) std::swap(area_poses[0], area_poses[i]);
+		if (area_poses[i].x > area_poses[0].x) std::swap(area_poses[0], area_poses[i]);
 	} 
+	//for (size_t i = 1; i < area_poses.size(); ++i) {
+	//	if (area_poses[i].y > area_poses[0].y + 0.01) std::swap(area_poses[0], area_poses[i]);
+	//} 
 	ref_pos = area_poses[0];
 	for (size_t i = area_poses.size()-1; ~i; --i) {
 		area_poses[i] -= area_poses[0];
@@ -752,11 +797,58 @@ void StatusManager::final_step() {
 	}
 	// Args:
 	//float threshold = 0.05;
-	float threshold = 0.005;
+	//float threshold = 0.005;
+	//float threshold = 0.01; //dc1n1
+	float threshold = 0.004;
+	//float threshold = 0.02;
+	float pos_threshold = 0.1;
+	//------------------
+
+	for (size_t k = 0; k < stashed_templates.size(); ++k) {
+		for (size_t i = 0; i < stashed_poses[k].size(); ++i) {
+			for (size_t j = i + 1; j < stashed_poses[k].size(); ++j) {
+				if (glm::length(stashed_poses[k][i] - stashed_poses[k][j]) < pos_threshold) {
+					std::swap(stashed_poses[k][j], stashed_poses[k].back());
+					stashed_poses[k].pop_back();
+				}
+			}
+		}
+
+	}
+
+
+	//------------------
 
 	std::vector<GEO::Point_3> p3s;
 	result_points.clear();
 	for (const auto& facade_node : facade_nodes) {
+		for (const auto& plane_node : facade_node->plane_nodes) {
+			const auto& plane_data = plane_node->plane_proxy->plane_data;
+			const auto& plane = plane_data->plane;
+			const auto& points_of_plane = *(plane_data->points_3);
+			for (const auto& p : points_of_plane) {
+				glm::vec3 pvec = GEO::p3_to_glm(p);
+				float distance = FLT_MAX;
+				size_t n = stashed_templates.size();
+				for (size_t i = 0; i < n; ++i) {
+					for (const auto& pos : stashed_poses[i]) {
+						float d0 = stashed_templates[i]->distance_p2m(pvec - pos);
+						distance = std::min(d0, distance);
+					}
+				}
+
+				//for (const auto& pos : generated_poses) {
+				//	float d0 = template_selected->distance_p2m(pvec - pos);
+				//	distance = std::min(d0, distance);
+				//}
+				// delete nearby points
+				if (distance < threshold) continue;
+				result_points.push_back(GEO::p3_to_glm(p));
+				p3s.push_back(p);
+			}
+		}
+	}
+	for (const auto& facade_node : tied_facade_nodes) {
 		for (const auto& plane_node : facade_node->plane_nodes) {
 			const auto& plane_data = plane_node->plane_proxy->plane_data;
 			const auto& plane = plane_data->plane;

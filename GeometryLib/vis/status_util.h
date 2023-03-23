@@ -47,6 +47,7 @@ public:
 
 
 	std::pair<glm::vec3, float> nearby_instance(glm::vec3 position, size_t cid);
+	void back_to_facades_view();
 	bool copy_area(glm::vec3 start_pos);
 	void copy_copy();
 	void stash_instances();
@@ -73,6 +74,7 @@ protected:
 	//std::shared_ptr<UIRectangle> test_rect;
 	std::shared_ptr<SelectNode> select_node;
 	std::vector<std::shared_ptr<FacadeNode>> static_facade_nodes;
+	std::vector<std::shared_ptr<FacadeNode>> tied_facade_nodes;
 	std::vector<std::shared_ptr<FacadeNode>> facade_nodes;
 	std::vector<std::shared_ptr<PlaneNode>> plane_nodes;
 	std::vector<std::shared_ptr<PlaneNode>> static_plane_nodes;

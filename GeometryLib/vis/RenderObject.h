@@ -9,7 +9,7 @@
 
 struct Vertex {
 	glm::vec3 Position;
-	//Vec3f Normal;
+	glm::vec3 Normal;
 	//Vec2f TexCoords;
 };
 
@@ -73,16 +73,27 @@ public:
 	PointCloud(const std::vector<glm::vec3>& points_,
 		std::shared_ptr<Shader> shader_
 		);
+	PointCloud(const std::vector<glm::vec3>& points_,
+		const std::vector<glm::vec3>& normals_,
+		std::shared_ptr<Shader> shader_
+		);
 	void SetPointScale(float s);
 
 protected:
-	//float scale = 0.05;
-	float scale = 0.025;
-	//float scale = 0.005;
-	//float scale = 0.001;
+	//float scale = 0.025;
+	float scale = 0.04;
 	void point2mesh(glm::vec3 point, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
+	void point2mesh(glm::vec3 point, glm::vec3 normal, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
 	void setup() override; 
 };
+
+//class PlanePointCloud : public PointCloud {
+//public:
+//	PlanePointCloud()
+//
+//protected:
+//
+//};
 
 class Sphere : public RenderGeometry {
 public:

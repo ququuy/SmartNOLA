@@ -31,6 +31,7 @@ namespace MA {
 #include <CGAL/IO/write_points.h>
 #include <CGAL/IO/write_ply_points.h>
 #include <CGAL/Point_set_3.h>
+#include <CGAL/Shape_detection/Efficient_RANSAC.h>
 #include <CGAL/Shape_detection/Region_growing/Region_growing.h>
 #include <CGAL/Shape_detection/Region_growing/Region_growing_on_point_set.h>
 #include "CGAL/Aff_transformation_3.h"
@@ -121,11 +122,20 @@ namespace GEO {
 	//using Region_growing_3d = CGAL::Shape_detection::Region_growing<PN3_Range, Sphere_Neighbor_query_3d, Region_type_3d>;
 	using Region_growing_3d = CGAL::Shape_detection::Region_growing<PN3_Range, K_Neighbor_query_3d, Region_type_3d>;
 
+
+	using RANSAC_Traits = CGAL::Shape_detection::Efficient_RANSAC_traits
+		<Kernel, std::vector<PN_3>, PN3_Point_map, PN3_Normal_map>;
+	using Efficient_ransac = CGAL::Shape_detection::Efficient_RANSAC<RANSAC_Traits>;
+	using RANSAC_Plane = CGAL::Shape_detection::Plane<RANSAC_Traits>;
+
+
+
 	namespace PlaneDetection {
 		struct RegionGrowingParams {
 			int k;//TODO 
 		};
 	}
+
 
 
 	// ---- line detection (2d)
@@ -177,6 +187,7 @@ namespace GEO {
 	
 
 	void normal_estimate(PN3_Range& pointsv);
+	void normal_estimate(PN3_Range& pointsv, FT spacing_);
 	Point2_Range normalize_points(const Point2_Range& range);
 	Point2_Range normalize_points_T(const Point2_Range& range);
 	Point3_Range normalize_points(const Point3_Range& range);
@@ -194,6 +205,22 @@ namespace GEO {
 
 
 	// ----------- plane detection
+	class Config_RANSAC {
+	public:
+		std::size_t min_points;
+		FT			probability;
+		FT          epsilon;
+		FT          cluster_epsilon;
+		FT          normal_threshold;
+		Config_RANSAC(
+		std::size_t _min_points,
+		FT			_probability,
+		FT          _epsilon,
+		FT          _cluster_epsilon,
+		FT          _normal_threshold
+		);
+
+	};// rg_default;
 	class Config_RegionGrowing {
 	public:
 		FT          search_sphere_radius;// = FT(1);
@@ -214,6 +241,7 @@ namespace GEO {
 
 	//std::vector<PN3_Range> detect_planes_growing(PN3_Range& points);
 	std::vector<PN3_Range> detect_planes_growing(PN3_Range& points, const Config_RegionGrowing& conf);
+	std::vector<PN3_Range> detect_planes_ransac(PN3_Range& points, const Config_RANSAC& conf);
 	std::vector<Kernel::Plane_3> extract_planes(const std::vector<PN3_Range>& ranges);
 	//void project_points(const Kernel::Plane_3 plane, const Point3_Range& p3_range, Point3_Range& p3_in_plane, Point2_Range& p2_in_plane, Point2_Range& p2_in_convex);
 
@@ -374,6 +402,7 @@ namespace FZ {
 
 		// --- Configs
 		float miu = 0.7;
+		//float miu = 0.7;
 
 		// ------
 

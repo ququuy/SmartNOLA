@@ -90,7 +90,7 @@ public:
 		);
 
 	// TODO
-	void extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes) const;
+	//void extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes) const;
 	void extract_planes();
 
 

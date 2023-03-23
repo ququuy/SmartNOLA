@@ -54,9 +54,9 @@ void RenderObject::setupMesh() {
 	// vertex Positions
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-	// vertex Colors 
-	//glEnableVertexAttribArray(1);
-	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
+	// vertex Normals 
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
 	// vertex Normals
 	//glEnableVertexAttribArray(2);
 	//glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
@@ -173,6 +173,74 @@ void PointCloud::point2mesh(glm::vec3 point, std::vector<Vertex> &vertices, std:
 		indices.push_back(7 + offset);
 		indices.push_back(6 + offset);
 	}
+}
+
+
+void PointCloud::point2mesh(glm::vec3 point, glm::vec3 normal, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices){
+	unsigned int offset = vertices.size();
+	for (int i = -1; i <= 1; i+=2) {
+		for (int j = -1; j <= 1; j += 2) {
+			for (int k = -1; k <= 1; k += 2) {
+				vertices.push_back(
+					Vertex{
+						glm::vec3(i, j, k) * scale + point,
+						normal
+					}
+				);
+			}
+		}
+	}
+
+	{
+		indices.push_back(0 + offset);
+		indices.push_back(1 + offset);
+		indices.push_back(3 + offset);
+	
+		indices.push_back(0 + offset);
+		indices.push_back(3 + offset);
+		indices.push_back(2 + offset);
+	
+		indices.push_back(1 + offset);
+		indices.push_back(5 + offset);
+		indices.push_back(7 + offset);
+	
+		indices.push_back(1 + offset);
+		indices.push_back(7 + offset);
+		indices.push_back(3 + offset);
+
+		indices.push_back(5 + offset);
+		indices.push_back(4 + offset);
+		indices.push_back(6 + offset);
+
+		indices.push_back(5 + offset);
+		indices.push_back(6 + offset);
+		indices.push_back(7 + offset);
+
+		indices.push_back(4 + offset);
+		indices.push_back(0 + offset);
+		indices.push_back(2 + offset);
+
+		indices.push_back(4 + offset);
+		indices.push_back(2 + offset);
+		indices.push_back(6 + offset);
+
+		indices.push_back(0 + offset);
+		indices.push_back(4 + offset);
+		indices.push_back(5 + offset);
+
+		indices.push_back(0 + offset);
+		indices.push_back(5 + offset);
+		indices.push_back(1 + offset);
+
+		indices.push_back(2 + offset);
+		indices.push_back(3 + offset);
+		indices.push_back(7 + offset);
+
+		indices.push_back(2 + offset);
+		indices.push_back(7 + offset);
+		indices.push_back(6 + offset);
+	}
+
 }
 
 void PointCloud::SetPointScale(float s) {

@@ -309,53 +309,92 @@ PlaneNode(plane_data_, shader_)
 }
 
 
-void FacadeNode::extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes) const {
-	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
-		float(1),
-		12,
-		float(0.1),//float(0.5),
-		float(10),//float(20),
-		50
-	);
-	auto shader = pcd->shader;
-	auto plane_data = plane_proxy->plane_data;
-
-	GEO::Point3_Range points_3 = *plane_data->points_3;
-	GEO::PN3_Range pns;
-	for (const auto& p3 : points_3) {
-		GEO::Point_3 point = p3;
-		GEO::Vector_3 normal;
-		pns.emplace_back(p3, normal);
-	}
-	auto points_of_planes = GEO::detect_planes_growing(pns, rg_default);
-
-	for (const auto& pn3_range : points_of_planes) {
-		GEO::Point3_Range p3_range = GEO::PN3Range_to_Point3Range(pn3_range);
-		std::shared_ptr<ALGO::PlaneData> plane_data =
-			std::make_shared<ALGO::PlaneData>(ALGO::project_points(p3_range));
-
-		planes.push_back(std::make_shared<PlaneNode>(plane_data, shader));
-	}
-
-}
-
-
-void FacadeNode::extract_planes() {
-//
+//void FacadeNode::extract_planes(std::vector<std::shared_ptr<PlaneNode>> &planes) const {
 //	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 //		float(1),
 //		12,
-//		float(0.2),//float(0.5),
-//		float(20),//float(20),
-//		50
+//		//5,
+//		float(0.1),//float(0.5),
+//		float(10),//float(20),
+//		//float(0.001),//float(0.5),
+//		//float(5),//float(20),
+//		//50
+//		20
 //	);
+//	auto shader = pcd->shader;
+//	auto plane_data = plane_proxy->plane_data;
+//
+//	GEO::Point3_Range points_3 = *plane_data->points_3;
+//	GEO::PN3_Range pns;
+//	for (const auto& p3 : points_3) {
+//		GEO::Point_3 point = p3;
+//		GEO::Vector_3 normal;
+//		pns.emplace_back(p3, normal);
+//	}
+//
+//	// normal estimateh
+//	//auto t1 = GEO::coloring_PN3(pns);
+//	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/before.ply").c_str(), t1);
+//	GEO::normal_estimate(pns);
+//	//auto t2 = GEO::coloring_PN3(pns);
+//	//IO::write_PNC3((std::string(SOLUTION_ROOT_PATH) + "/data/output/after.ply").c_str(), t2);
+//	auto points_of_planes = GEO::detect_planes_growing(pns, rg_default);
+//
+//	for (const auto& pn3_range : points_of_planes) {
+//		GEO::Point3_Range p3_range = GEO::PN3Range_to_Point3Range(pn3_range);
+//		std::shared_ptr<ALGO::PlaneData> plane_data =
+//			std::make_shared<ALGO::PlaneData>(ALGO::project_points(p3_range));
+//
+//		planes.push_back(std::make_shared<PlaneNode>(plane_data, shader));
+//	}
+//
+//}
+
+
+void FacadeNode::extract_planes() {
+	// Small b28
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	8,
+	//	float(0.01),//float(0.5),
+	//	float(50),//float(20),
+	//	30
+	//);
+	//b56
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	8,
+	//	float(0.08),//float(0.5),
+	//	float(30),//float(20),
+	//	30
+	//);
+
+	//dc1
 	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 		float(1),
 		12,
-		float(0.8),//float(0.5),
-		float(30),//float(20),
+		float(0.15),//float(0.2),
+		//float(0.15),//float(0.2),
+		float(40),//float(20),
 		50
 	);
+	// Middle f..
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	12,
+	//	float(0.2),//float(0.5),
+	//	float(40),//float(20),
+	//	50
+	//);
+	// large (C54
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	12,
+	//	float(0.8),//float(0.5),
+	//	float(30),//float(20),
+	//	//float(40),//float(20),
+	//	50
+	//);
 	auto shader = pcd->shader;
 	auto plane_data = plane_proxy->plane_data;
 
@@ -366,6 +405,7 @@ void FacadeNode::extract_planes() {
 		GEO::Vector_3 normal;
 		pns.emplace_back(p3, normal);
 	}
+	GEO::normal_estimate(pns);
 	auto points_of_planes = GEO::detect_planes_growing(pns, rg_default);
 
 	for (const auto& pn3_range : points_of_planes) {
