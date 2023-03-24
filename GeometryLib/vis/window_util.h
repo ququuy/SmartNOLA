@@ -3,6 +3,11 @@
 #include <glm/glm.hpp>
 #include "Camera.h"
 #include "status_util.h"
+#include "IO.h"
+
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 
 class WindowManager {
@@ -14,6 +19,9 @@ protected:
 	float lastX;
 	float lastY;
 
+	ImFont* font_tahoma;
+	ImFont* font_sans;
+
 	std::shared_ptr<Camera> camera;
 	GLFWwindow* window;
 
@@ -23,8 +31,10 @@ protected:
 public:
 	std::shared_ptr<StatusManager> m_status;
 
-	unsigned int SCR_WIDTH = 1024;
-	unsigned int SCR_HEIGHT = 768;
+	//unsigned int SCR_WIDTH = 1024;
+	//unsigned int SCR_HEIGHT = 768;
+	unsigned int SCR_WIDTH = 1920;
+	unsigned int SCR_HEIGHT = 1080;
 	glm::vec2 mouse_ndc;
 
 	static std::shared_ptr<WindowManager> instance_m_window;
@@ -49,6 +59,12 @@ public:
 	//std::function<GLFWcursorposfun> func_cursorpos = &mouse_callback;
 	//std::function<GLFWmousebuttonfun> func_mousebutton = &mouse_click_callback;
 	//std::function<GLFWframebuffersizefun> func_framebuffersizefun = framebuffer_size_callback;
+
+	void draw_gui();
+
+	void call_cluster();
+	void call_change_display_mode();
+
 
 	bool should_close() {
 		return glfwWindowShouldClose(window);
@@ -88,7 +104,7 @@ public:
 		// glfw window creation
 		// --------------------
 		//GLFWwindow* window = glfwCreateWindow(m_window->SCR_WIDTH, m_window->SCR_HEIGHT, "rep det", NULL, NULL);
-		window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "rep det", NULL, NULL);
+		window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "BuildingPoints Consolidation", NULL, NULL);
 		if (window == NULL)
 		{
 			std::cout << "Failed to create GLFW window" << std::endl;
@@ -142,6 +158,26 @@ public:
 			std::cout << "Failed to initialize GLAD" << std::endl;
 			return;
 		}
+
+
+		// init imgui
+		// Setup Dear ImGui context
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+		// Setup Dear ImGui style
+		//ImGui::StyleColorsDark();
+		//ImGui::StyleColorsClassic();
+		ImGui::StyleColorsLight();
+		font_tahoma = ImGui::GetIO().Fonts->AddFontFromFileTTF(IO::ASSETS_PATH("tahoma.ttf"), 30.0f, nullptr);
+		font_sans = ImGui::GetIO().Fonts->AddFontFromFileTTF(IO::ASSETS_PATH("sansserif.otf"), 24.0f, nullptr);
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplGlfw_InitForOpenGL(window, true);
+		ImGui_ImplOpenGL3_Init("#version 130");
 	}
 
 	//WindowManager() = default;
@@ -264,15 +300,12 @@ public:
 		//}
 
 		if (key == GLFW_KEY_C && action == GLFW_RELEASE) {
-			m_status->cluster();
+			call_cluster();
+			//m_status->cluster();
 		}
 
 		if (key == GLFW_KEY_B && action == GLFW_RELEASE) {
-			if (m_status->disp_stat == facades) m_status->disp_stat = planes;
-			else if (m_status->disp_stat == planes) {
-				m_status->back_to_facades_view();
-				m_status->disp_stat = facades;
-			}
+			call_change_display_mode();
 		}
 
 
@@ -298,6 +331,115 @@ public:
 	}
 
 };
+
+
+void WindowManager::call_cluster() {
+	m_status->cluster();
+}
+void WindowManager::call_change_display_mode() {
+	if (m_status->disp_stat == facades) m_status->disp_stat = planes;
+	else if (m_status->disp_stat == planes) {
+		m_status->back_to_facades_view();
+		m_status->disp_stat = facades;
+	}
+}
+
+void WindowManager::draw_gui() {
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	//ImGui::SetNextWindowPos(ImVec2(10, 600), ImGuiCond_FirstUseEver);
+	//ImGui::SetNextWindowSize(ImVec2(600, 600), ImGuiCond_FirstUseEver);
+//ImGui::SetNextWindowPos(ImVec2(10, 600));
+//ImGui::SetNextWindowSize(ImVec2(600, 600));
+
+// 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+	{
+		ImGui::PushFont(font_tahoma);
+		ImGui::SetNextWindowPos(ImVec2(0, 0));
+		ImGui::SetNextWindowSize(ImVec2(1920, 65));
+		//ImGui::SetWindowFontScale(1.8);
+		static float f = 0.0f;
+		//static int counter = 0;
+
+		ImGui::Begin("Inspector", NULL, ImGuiWindowFlags_NoTitleBar);                          // Create a window called "Hello, world!" and append into it.
+		//ImGui::SetWindowFontScale(2.5);
+
+		//ImGui::Text("Try to select some repeated instances.");               // Display some text (you can use a format strings too)
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(20);
+		if (ImGui::Button("Change Mode", ImVec2(180,50))) {
+			call_change_display_mode();
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(220);
+		if (ImGui::Button("Cluster", ImVec2(180, 50))) {
+			call_cluster();
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(420);
+		if (ImGui::Button("Calc Shape", ImVec2(180,50))) {
+			//call_change_display_mode();
+			m_status->finish_selecting();
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(620);
+		if (ImGui::Button("Fit Cluster", ImVec2(180,50))) {
+			//call_change_display_mode();
+			m_status->search_same_row();
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(820);
+		if (ImGui::Button("Repeat", ImVec2(180,50))) {
+			//call_change_display_mode();
+			//m_status->search_same_row();
+			m_status->copy_copy();
+		}
+		//ImGui::SameLine();
+		//ImGui::Text(" ");            
+		//ImGui::SameLine();
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(1020);
+		if (ImGui::Button("Reset", ImVec2(180,50))) {
+			//call_change_display_mode();
+			//m_status->search_same_row();
+			m_status->clear();
+		}
+
+		//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
+		//ImGui::Checkbox("Another Window", &show_another_window);
+
+		//ImGui::SliderFloat("Point Scale", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+		//ImGui::ColorEdit3("Clear Color", (float*)&clear_color); // Edit 3 floats representing a color
+		//ImGui::SliderFloat("Plane Cluster Radius", &_plane_cluster_radius, 0.001, 0.03);
+
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(1750);
+		ImGui::Text("(%.1f FPS)", ImGui::GetIO().Framerate);
+
+		ImGui::End();
+	}
+	{
+		ImGui::SetNextWindowPos(ImVec2(0, 960));
+		ImGui::SetNextWindowSize(ImVec2(800, 120));
+		ImGui::Begin("Description");
+		ImGui::PopFont();
+		ImGui::PushFont(font_sans);
+		ImGui::TextWrapped("Try to select some repeated instances.");
+		ImGui::TextWrapped("Right Click to select a structure or grouping.");
+
+		ImGui::End();
+		ImGui::PopFont();
+	}
+
+
+
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+
 
 //WindowManager::instance_m_window = nullptr;
 std::shared_ptr<WindowManager> WindowManager::instance_m_window(

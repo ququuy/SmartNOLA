@@ -375,11 +375,15 @@ bool StatusManager::copy_area(glm::vec3 start_pos) {
 
 
 void StatusManager::copy_copy() {
+	// repeat once
 	glm::vec3 delta_pos0 = delta_pos;
 	glm::vec3 cur_pos = ref_pos + delta_pos0 + delta_pos0;
-	while (copy_area(cur_pos)) {
-		cur_pos += delta_pos0;
-	}
+	copy_area(cur_pos);
+	ref_pos += delta_pos0;
+	delta_pos = delta_pos0;
+	//while (copy_area(cur_pos)) {
+	//	cur_pos += delta_pos0;
+	//}
 }
 
 void StatusManager::drag() {

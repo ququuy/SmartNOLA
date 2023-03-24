@@ -70,6 +70,7 @@ int main() {
 		glEnable(GL_DEPTH_TEST);
         // draw
         m_status->_draw();
+        m_window->draw_gui();
 
 
 		// Display results

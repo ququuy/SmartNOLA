@@ -16,3 +16,4 @@ include_directories(${PROJECT_BINARY_DIR}/GeometryLib)
 
 # Include sub-projects.
 add_subdirectory ("GeometryLib")
+add_subdirectory ("imgui")

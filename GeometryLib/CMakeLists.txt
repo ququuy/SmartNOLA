@@ -30,6 +30,8 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glad REQUIRED)
 
+
+
 # Add source to this project's executable.
 #add_executable (GeometryLib "GeometryLib.cpp" "GeometryLib.h" "main.cpp" "IO.h" "IO.cpp" "vis/RenderObject.h" "vis/RenderObject.cpp" "vis/window_util.h")
 add_executable (GeometryLib "GeometryLib.cpp" "GeometryLib.h" "IO.h" "IO.cpp" "interact.cpp" "vis/RenderObject.h" "vis/RenderObject.cpp" "vis/window_util.h" "vis/camera.h" "vis/PlaneNode.h" "vis/PlaneNode.cpp"  "vis/status_util.h" "vis/status_util.cpp" "vis/camera.cpp")
@@ -55,8 +57,11 @@ target_link_libraries(GeometryLib PRIVATE CGAL::OSQP_support)
 target_link_libraries(GeometryLib PRIVATE CGAL::pointmatcher_support)
 target_link_libraries(GeometryLib PRIVATE glm::glm)
 
-target_include_directories(GeometryLib PRIVATE ${GL_DIR}/include)
-target_link_libraries(GeometryLib PRIVATE OpenGL::GL)
-target_link_libraries(GeometryLib PRIVATE glad::glad)
-target_link_libraries(GeometryLib PRIVATE glfw)
+target_include_directories(GeometryLib PRIVATE ${GL_DIR}/include) # for shader.h...
+target_link_libraries(GeometryLib PRIVATE OpenGL::GL) # vcpkg
+target_link_libraries(GeometryLib PRIVATE glad::glad) # vcpkg
+target_link_libraries(GeometryLib PRIVATE glfw) # vcpkg
+
+target_include_directories(GeometryLib PRIVATE "../imgui")
+target_link_libraries(GeometryLib PRIVATE imgui)
 
