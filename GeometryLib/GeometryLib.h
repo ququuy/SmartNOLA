@@ -179,9 +179,9 @@ namespace GEO {
 	inline FT cross_2(const glm::vec2& v0, const glm::vec2& v1) { return v0.x * v1.y - v0.y * v1.x; }
 	inline Color rand_color() {
 		const Color color = {
-				static_cast<unsigned char>(rand() % 256),
-				static_cast<unsigned char>(rand() % 256),
-				static_cast<unsigned char>(rand() % 256), 255 };
+				50+static_cast<unsigned char>(rand() % 156),
+				50+static_cast<unsigned char>(rand() % 156),
+				50+static_cast<unsigned char>(rand() % 156), 255 };
 		return color;
 	}
 	

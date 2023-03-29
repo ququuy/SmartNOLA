@@ -555,15 +555,19 @@ void StatusManager::_initialize() {
 	//   ------- Facades
 	// ----- Region Growing & Coloring Result 
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/54_C_q.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f07A_Test.ply").c_str());
+	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f07A_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/b28_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/b28_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_Test.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f11_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/b56_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_noise_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_noise2_Test_N.ply").c_str());
-	GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_Test_N.ply").c_str());
+	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/dc1_Test_N.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/f08_low_Test.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/my-f08-1.ply").c_str());
 	//GEO::PN3_Range points = IO::read_PLY((std::string(SOLUTION_ROOT_PATH) + "/data/my-f08-3.ply").c_str());

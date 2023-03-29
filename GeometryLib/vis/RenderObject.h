@@ -81,7 +81,8 @@ public:
 
 protected:
 	//float scale = 0.025;
-	float scale = 0.04;
+	//float scale = 0.04;
+	float scale = 0.07;
 	void point2mesh(glm::vec3 point, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
 	void point2mesh(glm::vec3 point, glm::vec3 normal, std::vector<Vertex>& vertices, std::vector<unsigned int>& indices);
 	void setup() override; 

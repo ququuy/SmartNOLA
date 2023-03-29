@@ -1059,7 +1059,7 @@ void ALGO::plane_clustering_fuzzy(const PlaneData_Range& planes_input, std::vect
 	// for wall_54.ply
 	//FT _miu = 0.995;
 	//FT _miu = 0.996;
-	FT _miu = 0.995;
+	FT _miu = 0.991;
 	//FT _threshold_shape = 0.05;
 
 	// Variables Initialize

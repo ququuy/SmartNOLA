@@ -400,10 +400,18 @@ void WindowManager::draw_gui() {
 		//ImGui::SameLine();
 		ImGui::SameLine();
 		ImGui::SetCursorPosX(1020);
-		if (ImGui::Button("Reset", ImVec2(180,50))) {
+		if (ImGui::Button("Generate", ImVec2(180,50))) {
 			//call_change_display_mode();
 			//m_status->search_same_row();
 			m_status->clear();
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(1220);
+		if (ImGui::Button("Delete", ImVec2(180,50))) {
+		}
+		ImGui::SameLine();
+		ImGui::SetCursorPosX(1420);
+		if (ImGui::Button("Reset", ImVec2(180,50))) {
 		}
 
 		//ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
@@ -420,8 +428,8 @@ void WindowManager::draw_gui() {
 		ImGui::End();
 	}
 	{
-		ImGui::SetNextWindowPos(ImVec2(0, 960));
-		ImGui::SetNextWindowSize(ImVec2(800, 120));
+		ImGui::SetNextWindowPos(ImVec2(0, 970));
+		ImGui::SetNextWindowSize(ImVec2(800, 110));
 		ImGui::Begin("Description");
 		ImGui::PopFont();
 		ImGui::PushFont(font_sans);

@@ -369,30 +369,48 @@ void FacadeNode::extract_planes() {
 	//	30
 	//);
 
-	//dc1
-	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
-		float(1),
-		12,
-		float(0.15),//float(0.2),
-		//float(0.15),//float(0.2),
-		float(40),//float(20),
-		50
-	);
-	// Middle f..
+	// b28
 	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 	//	float(1),
 	//	12,
-	//	float(0.2),//float(0.5),
+	//	float(0.1),//float(0.2),
+	//	//float(0.15),//float(0.2),
+	//	float(30),//float(20),
+	//	50
+	//);
+
+	//dc1 recent
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	12,
+	//	float(0.15),//float(0.2),
+	//	//float(0.15),//float(0.2),
 	//	float(40),//float(20),
 	//	50
 	//);
 	// large (C54
+	// Middle f8..
 	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
 	//	float(1),
 	//	12,
-	//	float(0.8),//float(0.5),
-	//	float(30),//float(20),
-	//	//float(40),//float(20),
+	//	float(0.3),//float(0.2),
+	//	float(40),//float(20),
+	//	50
+	//);
+	// Middle f8..
+	GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+		float(1),
+		16,
+		float(0.15),//float(0.2),
+		float(40),//float(20),
+		50
+	);
+	// large (C54
+	//GEO::Config_RegionGrowing rg_default = GEO::Config_RegionGrowing(
+	//	float(1),
+	//	12,
+	//	float(0.1),//float(0.5),
+	//	float(20),//float(20),
 	//	50
 	//);
 	auto shader = pcd->shader;
